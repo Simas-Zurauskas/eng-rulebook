@@ -19,6 +19,12 @@ plausible-looking guess reads as a decision the project never made.
   `profiles/` here describes *this* workspace only. When copying the skill to a new
   workspace, empty this directory (keep this README) — the old profiles are the old
   project's facts.
+**One profile is not a topic profile:** `guard-rails.md`, this workspace's ledger of which
+declared guard rails are actually wired. Seed it with
+`node meta/guard-rails.mjs --template > profiles/guard-rails.md` and reconcile with
+`/eng-rulebook guardrails`. It lives here for the same reason the others do — it is a fact about
+*this* workspace, not about the library.
+
 - **Empty is honest.** A missing profile means "not yet declared" — agents proceed on the
   generic master, say so, and offer to create the profile. A stale profile is worse than a
   missing one: it reads as a decision.

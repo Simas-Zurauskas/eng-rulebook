@@ -75,7 +75,16 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
 | [`performance-and-data-access.md`](performance-and-data-access.md) | Cost that scales with data volume: index justification and query-shape matching, the N+1 class, result and payload bounds, caching, pool sizing, latency budgets and deadline cancellation |
 
 Authoring a new standard or editing one: [`_authoring.md`](_authoring.md) is the contract —
-required shape, genericity rules, lane ownership, evidence bar.
+required shape, genericity rules, lane ownership, anchor discipline, evidence bar.
+
+**The `_`-prefixed files beside the rulebooks are machinery, not standards** — the gates exclude
+them from the standards set by that prefix:
+
+| File | Holds |
+| --- | --- |
+| [`_authoring.md`](_authoring.md) | The contract every rulebook is written to, and the lane index (authoritative on which file owns a subject) |
+| [`_gaps.md`](_gaps.md) | The inbound backlog: defects **no** rule covers, with a four-point intake bar. Raised via `/eng-rulebook contribute` |
+| [`_coverage-asvs.md`](_coverage-asvs.md) | Which ASVS 5.0 chapters this library states a rule for — the delta that makes the §1 assurance-target declaration falsifiable |
 
 ## The delivery seam — this library owns WHAT, a delivery process owns WHEN
 
