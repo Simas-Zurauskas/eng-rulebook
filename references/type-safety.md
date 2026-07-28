@@ -1,8 +1,8 @@
 # Type Safety Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 > Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs how TypeScript's guarantees are kept real: compiler strictness, the `any` and
@@ -35,6 +35,18 @@ It does NOT cover:
 The bar is demonstrated, not aspirational: one audited four-repo TypeScript workspace held
 **effectively zero `any` in product code** with `strict` on everywhere — three of four repos
 scored 5/5 on type discipline. This codifies what made that true, and where it leaked.
+
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| TypeScript | **7.0** (GA 2026-07-08, npm `latest` 7.0.2), the native port. **6.0** (23 March 2026) was the last JavaScript-based release and is where `strict` became a *compiler* default — so a repo that omits the flag now opts out rather than never opting in, and a rule justified against 5.x reasoning may be stated backwards. Matches `tooling-and-workspace.md` and `comment-standard.md` |
+| TypeScript `tsc --init` template | Prescriptive template introduced in **5.9** (1 Aug 2025) and retained in 6.0 — read from the compiler's own init emitter, not from release-note prose |
+| TypeScript TSConfig Reference | **Living document, unversioned** — it tracks whatever compiler ships. Version the *compiler* in the profile; a version suffix on this page means nothing |
+| typescript-eslint | **v8** — stable since 31 July 2024, 8.65.0 as of 20 July 2026. `recommended-type-checked` and `strict-type-checked` are v8 preset names |
+| Total TypeScript "The TSConfig Cheat Sheet" (Matt Pocock) | **Living document, unversioned**; its changelog last moved 2024-04-23. Cite it for *rationale* only — it does not recommend `exactOptionalPropertyTypes`, so §2.1 is deliberately stricter than it |
+| `useUnknownInCatchVariables` | TypeScript **4.4** onward, inside the `strict` family — never a separate opt-in (§8) |
 
 ---
 
@@ -73,10 +85,14 @@ which `strict` does not include. Each names the failure it prevents:
 | `noImplicitReturns` | A code path that falls off the end of a value-returning function, yielding `undefined` nobody typed. |
 | `verbatimModuleSyntax` (implies `isolatedModules`) | Single-file transpilers (bundlers, test runners) mis-compiling type-only imports/exports that whole-program `tsc` handles. Forces `import type`, making erasure predictable. |
 
-Anchors: TypeScript 5.9's generated `tsc --init` config ships `strict`,
-`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`, and
-`skipLibCheck: true` — this baseline is upstream consensus, not house taste. See also the
-Total TypeScript "TSConfig Cheat Sheet" and the TypeScript TSConfig Reference (5.x).
+Anchors: the TypeScript 6.0+ generated `tsc --init` config ships `strict`,
+`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`,
+`isolatedModules`, and `skipLibCheck: true`, and offers `noImplicitReturns`,
+`noImplicitOverride`, and `noFallthroughCasesInSwitch` as commented style options — this
+baseline is upstream consensus, not house taste. Under 6.0 `strict` is also the compiler
+default, so `"strict": false` is now an explicit opt-out someone has to write. See also the
+Total TypeScript "TSConfig Cheat Sheet" and the TypeScript TSConfig Reference (both living
+documents — §0).
 
 A repo MAY adopt `exactOptionalPropertyTypes` or `noUncheckedIndexedAccess` in a staged
 migration (they are the two high-friction flags on an existing codebase) — but a deviation
@@ -293,20 +309,20 @@ Before committing:
 
 CI checks that make this standard enforceable rather than aspirational:
 
-- **Run each repo's standalone `tsc --noEmit` in CI**, as its own step, independent of the
+- **[type-safety.GR1]** **Run each repo's standalone `tsc --noEmit` in CI**, as its own step, independent of the
   framework build. Fails shape 2 at the pull request instead of at the audit.
-- **Lint at typescript-eslint v8 `recommended-type-checked` or above**, with
+- **[type-safety.GR2]** **Lint at typescript-eslint v8 `recommended-type-checked` or above**, with
   `no-explicit-any` at error and the `no-unsafe-*` family enabled. Add
   `consistent-type-assertions` with object-literal assertions disallowed (kills
   `{} as T`, the emptiest claim of all) and `no-non-null-assertion` at warn or better.
-- **Require reasons on suppressions**: `ban-ts-comment` configured to demand descriptions
+- **[type-safety.GR3]** **Require reasons on suppressions**: `ban-ts-comment` configured to demand descriptions
   on `@ts-expect-error` (and forbid bare `@ts-ignore`); pair with the comment standard's
   directive-reason rule for `eslint-disable`.
-- **Grep gate:** fail CI on `as unknown as` outside test globs. Trivial to run, catches the
+- **[type-safety.GR4]** **Grep gate:** fail CI on `as unknown as` outside test globs. Trivial to run, catches the
   worst cast at zero cost.
-- **Fail CI on a stale or hand-edited generated file** — regenerate and diff (owned by
+- **[type-safety.GR5]** **Fail CI on a stale or hand-edited generated file** — regenerate and diff (owned by
   `api-contracts-and-codegen.md`; listed here because it is this standard's shape 6).
-- **Share the tsconfig baseline** from one extended base file so per-repo drift is a diff,
+- **[type-safety.GR6]** **Share the tsconfig baseline** from one extended base file so per-repo drift is a diff,
   not a discovery (`tooling-and-workspace.md`).
 
 ---

@@ -1,8 +1,8 @@
 # Tooling & Workspace Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs how a multi-repo workspace stays **one system** at the tooling level: package
@@ -32,6 +32,18 @@ This standard owns that the **same tooling surface exists everywhere**. It does 
   *directories* in general are §6 here; the API-spec pipeline specifically is that file's lane.
 - **Dependency-vulnerability severity gating and secrets policy detail** — `security.md`.
 
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| Node.js release lines | **Living schedule.** At verification: 24 "Krypton" **Active LTS** (to 2026-10-20), 26 **Current**, 22 Maintenance LTS. §2.3's floor is checked against the published schedule, never from memory — a floor citing a line already in maintenance certifies an unsupported runtime |
+| Corepack | **Not distributed with Node.js 25+**; ships with Node 24 and earlier, and remains a standalone install (`corepack` 0.35.0). This is exactly why §2.4 treats `packageManager` as a declaration, not enforcement |
+| TypeScript | **7.0** (GA 2026-07-08), a Go-native `tsc` — a **major** bump. The §5.1 case in the flesh: one repo on 7.x and one on 6.x is the same tool on a different engine, and `@typescript/typescript6` exists precisely so both can coexist |
+| ESLint | **10.x** (v10.0.0, 2026-02-06). The `.eslintrc*` system is **removed** — flat `eslint.config.js` only; v9 reaches EOL 2026-08-06. On v10 a repo still on `.eslintrc` is not drift, it is a broken lint gate (§4.4) |
+| syncpack | **15.x** (15.3.2). Monorepo-oriented; §5.2's polyrepo path is a diff script, not this tool |
+| Workspace tooling (§9, option c) | yarn/pnpm workspaces, Turborepo, Nx — **labelled examples, deliberately unversioned here.** The chosen tool and its pin belong in the profile |
+
 ---
 
 ## 1. Core principle — uniformity must be mechanised or audited, never assumed
@@ -57,24 +69,33 @@ of these is a hope, not a rule.
 
 ## 2. One package manager, pinned engines, lockfiles honoured
 
-1. **One package manager per workspace, the same in every repo, declared in every
-   `package.json` via the `packageManager` field.** Mixing managers gives you two lockfile
-   formats and two resolution algorithms describing "the same" dependency tree — the
-   canonical source of works-on-my-machine installs.
-2. **Lockfiles MUST be committed, and CI MUST install with them frozen** (the manager's
-   `--frozen-lockfile` / `ci` mode). An ignored or missing lockfile is a
-   **build-reproducibility defect**: CI tests a different dependency tree than the one
-   developers run and the one that ships.
-3. **`engines.node` MUST be declared in every repo, with the same value, and that value MUST
-   match what CI and production actually run.** In the audited workspace the floor was
-   declared in two of four repos and stated a lower major than every CI pipeline used — an
-   incomplete floor that was also not the truth. A wrong floor is worse than none: it
-   certifies an environment nobody tests.
-4. **Do not assume Corepack is present.** The `packageManager` field is read by Corepack
-   (Node.js); Node.js 25 removed Corepack from the distribution (it remains a standalone
-   install, and ships with Node 24 LTS and earlier). So the field is the *declaration*, not
-   the *enforcement* — enforce in CI as well: fail the build if a foreign lockfile appears
-   (e.g. an `npm` lockfile in a yarn/pnpm workspace) or if the install used the wrong manager.
+### 2.1 One package manager per workspace, the same in every repo, declared in every `package.json` via the `packageManager` field
+
+Mixing managers gives you two lockfile
+formats and two resolution algorithms describing "the same" dependency tree — the
+canonical source of works-on-my-machine installs.
+
+### 2.2 Lockfiles MUST be committed, and CI MUST install with them frozen
+
+(the manager's
+`--frozen-lockfile` / `ci` mode). An ignored or missing lockfile is a
+**build-reproducibility defect**: CI tests a different dependency tree than the one
+developers run and the one that ships.
+
+### 2.3 `engines.node` MUST be declared in every repo, with the same value, and that value MUST match what CI and production actually run
+
+In the audited workspace the floor was
+declared in two of four repos and stated a lower major than every CI pipeline used — an
+incomplete floor that was also not the truth. A wrong floor is worse than none: it
+certifies an environment nobody tests.
+
+### 2.4 Do not assume Corepack is present
+
+The `packageManager` field is read by Corepack
+(Node.js); Node.js 25 removed Corepack from the distribution (it remains a standalone
+install, and ships with Node 24 LTS and earlier). So the field is the *declaration*, not
+the *enforcement* — enforce in CI as well: fail the build if a foreign lockfile appears
+(e.g. an `npm` lockfile in a yarn/pnpm workspace) or if the install used the wrong manager.
 
 ---
 
@@ -94,120 +115,180 @@ Every repo implements the **same named scripts**, even where the implementation 
 A workspace MAY choose different names (record them once in the profile), but the chosen
 names are then **identical in every repo** and mean the same thing everywhere.
 
-1. **A missing script is how a repo silently exits the quality loop.** CI templates, agents,
-   and contributors all invoke by name; where the name is absent, the repo gets *skipped*,
-   not flagged. In the audited workspace, the one repo missing the typecheck and test scripts
-   was also the only repo with zero tests — the missing vocabulary and the coverage hole
-   arrived together, and neither surfaced until an audit.
-2. **`typecheck` MUST be standalone, not build-implied.** "The framework build typechecks" is
-   not a substitute: it couples a seconds-fast gate to a minutes-slow one — so nobody runs it
-   locally — and it vanishes the day someone disables build-time checking for speed.
-3. **Repo-specific extras are additive, never replacements.** Platform build scripts, codegen
-   scripts, migration runners — fine. They sit *beside* the core set, never instead of it.
-4. **Same name ⇒ same semantics.** If `lint` means "lint everything" in one repo, it does not
-   mean "lint changed files" in another.
+### 3.1 A missing script is how a repo silently exits the quality loop
+
+CI templates, agents,
+and contributors all invoke by name; where the name is absent, the repo gets *skipped*,
+not flagged. In the audited workspace, the one repo missing the typecheck and test scripts
+was also the only repo with zero tests — the missing vocabulary and the coverage hole
+arrived together, and neither surfaced until an audit.
+
+### 3.2 `typecheck` MUST be standalone, not build-implied
+
+"The framework build typechecks" is
+not a substitute: it couples a seconds-fast gate to a minutes-slow one — so nobody runs it
+locally — and it vanishes the day someone disables build-time checking for speed.
+
+### 3.3 Repo-specific extras are additive, never replacements
+
+Platform build scripts, codegen
+scripts, migration runners — fine. They sit *beside* the core set, never instead of it.
+
+### 3.4 Same name ⇒ same semantics
+
+If `lint` means "lint everything" in one repo, it does not
+mean "lint changed files" in another.
 
 ---
 
 ## 4. Formatter and linter baselines
 
-1. **Formatter config MUST be byte-identical across all repos.** Byte-identical is the bar
-   because it is *checkable* — a CI diff against a canonical copy, no judgement required. It
-   is also achievable: the audited workspace held a byte-identical formatter config across
-   four repos throughout. Any divergence turns cross-repo diffs and code moved between repos
-   into churn.
-2. **Lint: one base ruleset per stack, divergence justified per repo.** Framework presets
-   legitimately differ (a web-framework preset, a mobile-framework preset, a plain
-   typescript-eslint preset). Anything *beyond* the framework preset that differs between
-   repos MUST have a recorded justification in the profile — otherwise it is drift.
-3. **Shared custom lint blocks are defined once and synced by mechanism, never copy-pasted.**
-   The audited workspace had one custom import-sort group block pasted into four configs, each
-   paste with slightly different wording. Comment drift is the leading indicator; rule drift
-   is the next commit. Export the block from one place (§9) and spread it after each repo's
-   framework preset.
-4. **Conform scaffold output on day one.** The same workspace had lint configs in two module
-   formats purely because each repo kept whatever its generator emitted. A scaffold is a
-   starting point, not a convention; the workspace convention wins.
-5. **Editor config is committed identically in every repo, or in none.** On-save format +
-   lint-fix settings enforce the baseline where it matters — at the keystroke. The audited
-   workspace had them committed in one repo, gitignored in another, absent in two: per-repo
-   luck, not enforcement.
+### 4.1 Formatter config MUST be byte-identical across all repos
+
+Byte-identical is the bar
+because it is *checkable* — a CI diff against a canonical copy, no judgement required. It
+is also achievable: the audited workspace held a byte-identical formatter config across
+four repos throughout. Any divergence turns cross-repo diffs and code moved between repos
+into churn.
+
+### 4.2 Lint: one base ruleset per stack, divergence justified per repo
+
+Framework presets
+legitimately differ (a web-framework preset, a mobile-framework preset, a plain
+typescript-eslint preset). Anything *beyond* the framework preset that differs between
+repos MUST have a recorded justification in the profile — otherwise it is drift.
+
+### 4.3 Shared custom lint blocks are defined once and synced by mechanism, never copy-pasted
+
+The audited workspace had one custom import-sort group block pasted into four configs, each
+paste with slightly different wording. Comment drift is the leading indicator; rule drift
+is the next commit. Export the block from one place (§9) and spread it after each repo's
+framework preset.
+
+### 4.4 Conform scaffold output on day one
+
+The same workspace had lint configs in two module
+formats purely because each repo kept whatever its generator emitted. A scaffold is a
+starting point, not a convention; the workspace convention wins.
+
+### 4.5 Editor config is committed identically in every repo, or in none
+
+On-save format +
+lint-fix settings enforce the baseline where it matters — at the keystroke. The audited
+workspace had them committed in one repo, gitignored in another, absent in two: per-repo
+luck, not enforcement.
 
 ---
 
 ## 5. Dependency alignment and drift
 
-1. **Shared dependencies MUST be pinned to the same major across all repos** — both the
-   toolchain trio (compiler, linter, formatter) and shared runtime libs (HTTP client,
-   data-fetching lib, schema validator). SHOULD converge on the same exact version, bumped
-   together. In the audited workspace these were at four different same-major pins across
-   four lockfiles: no breakage *yet*, but format, lint, and type behaviour could differ
-   subtly per repo — a class of bug that reproduces in exactly one repo and nowhere else.
-2. **A drift check MUST run on a declared cadence.** In a monorepo, syncpack does this
-   natively (mismatch listing, version groups, CI mode). In a polyrepo, a small script that
-   diffs the declared versions of the profile's shared-dependency list across every
-   `package.json` is enough — the point is that drift is *reported*, not discovered.
-3. **Majors-behind and unmaintained dependencies are surfaced on the same cadence.** Being
-   several majors behind is deferred, compounding work; an unmaintained dependency is a
-   security decision. Severity gating of vulnerability findings: `security.md`.
+### 5.1 Shared dependencies MUST be pinned to the same major across all repos
+
+Both the
+toolchain trio (compiler, linter, formatter) and shared runtime libs (HTTP client,
+data-fetching lib, schema validator). SHOULD converge on the same exact version, bumped
+together. In the audited workspace these were at four different same-major pins across
+four lockfiles: no breakage *yet*, but format, lint, and type behaviour could differ
+subtly per repo — a class of bug that reproduces in exactly one repo and nowhere else.
+
+### 5.2 A drift check MUST run on a declared cadence
+
+In a monorepo, syncpack does this
+natively (mismatch listing, version groups, CI mode). In a polyrepo, a small script that
+diffs the declared versions of the profile's shared-dependency list across every
+`package.json` is enough — the point is that drift is *reported*, not discovered.
+
+### 5.3 Majors-behind and unmaintained dependencies are surfaced on the same cadence
+
+Being
+several majors behind is deferred, compounding work; an unmaintained dependency is a
+security decision. Severity gating of vulnerability findings: `security.md`.
 
 ---
 
 ## 6. Generated directories are outputs
 
-1. **Gitignored, never hand-edited, regenerated deterministically from committed inputs.**
-   A hand edit to a generated directory is a write to build output — the next regeneration
-   silently discards it.
-2. **Every input change regenerates before any build that consumes the output.** The failure
-   shape, from a mobile platform that generates its native project directories from app
-   config: an app-config change (version, permissions, plugins) followed by a local build
-   *without* regeneration ships a **stale native build** — the change silently absent, no
-   error anywhere. The regeneration step is part of the change, not part of the release.
-3. **Document WHICH directories are generated, from what inputs, by what command — per repo,
-   in the profile.** Output is not distinguishable from source by inspection; an agent or new
-   contributor without the profile will edit output or commit it. (Observed at workspace
-   level: generated docs and generated native dirs both live beside source.)
-4. Generated *files* (API client types) follow the same law; their pipeline is owned by
-   `api-contracts-and-codegen.md`.
+### 6.1 Gitignored, never hand-edited, regenerated deterministically from committed inputs
 
----
+A hand edit to a generated directory is a write to build output — the next regeneration
+silently discards it.
+
+### 6.2 Every input change regenerates before any build that consumes the output
+
+The failure
+shape, from a mobile platform that generates its native project directories from app
+config: an app-config change (version, permissions, plugins) followed by a local build
+*without* regeneration ships a **stale native build** — the change silently absent, no
+error anywhere. The regeneration step is part of the change, not part of the release.
+
+### 6.3 Document WHICH directories are generated, from what inputs, by what command — per repo, in the profile
+
+Output is not distinguishable from source by inspection; an agent or new
+contributor without the profile will edit output or commit it. (Observed at workspace
+level: generated docs and generated native dirs both live beside source.)
+
+### 6.4 Generated files follow the same law
+
+Generated *files* (API client types) follow the same law; their pipeline is owned by
+`api-contracts-and-codegen.md`. ---
 
 ## 7. CI parity
 
-1. **Every repo runs typecheck + lint + format-check + test on every change.** A repo whose
-   CI runs fewer gates than its siblings is exiting the quality loop exactly as in §3.1 —
-   and usually *because* of §3.1, since CI invokes the scripts by name.
-2. **CI installs from the lockfile on a clean checkout.** The clean-checkout guarantee
-   (`testing.md`) is precisely what CI exercises; a suite that needs undeclared local state
-   makes CI the first liar in the chain.
-3. **The CI build image MUST match the deploy runtime in Node major AND CPU architecture
-   whenever the artifact bundles compiled native bindings.** The failure shape, from a real
-   incident: a deploy artifact that shipped `node_modules` was built on an x64 CI image and
-   deployed to ARM instances — a native binding failed to load, the service **crash-looped on
-   boot**, and the platform rolled it back. If the artifact ships `node_modules`, build
-   architecture is part of the artifact contract. (The runtime half of this coupling —
-   instance types, env — is `config-and-environment.md`.)
-4. **Every pipeline that builds the same repo uses the same build image/config.** Where two
-   pipelines share one build definition, an image fix lands once; where they don't, fixing
-   one pipeline re-creates the incident in the other.
+### 7.1 Every repo runs typecheck + lint + format-check + test on every change
+
+A repo whose
+CI runs fewer gates than its siblings is exiting the quality loop exactly as in §3.1 —
+and usually *because* of §3.1, since CI invokes the scripts by name.
+
+### 7.2 CI installs from the lockfile on a clean checkout
+
+The clean-checkout guarantee
+(`testing.md`) is precisely what CI exercises; a suite that needs undeclared local state
+makes CI the first liar in the chain.
+
+### 7.3 The CI build image MUST match the deploy runtime in Node major AND CPU architecture whenever the artifact bundles compiled native bindings
+
+The failure shape, from a real
+incident: a deploy artifact that shipped `node_modules` was built on an x64 CI image and
+deployed to ARM instances — a native binding failed to load, the service **crash-looped on
+boot**, and the platform rolled it back. If the artifact ships `node_modules`, build
+architecture is part of the artifact contract. (The runtime half of this coupling —
+instance types, env — is `config-and-environment.md`.)
+
+### 7.4 Every pipeline that builds the same repo uses the same build image/config
+
+Where two
+pipelines share one build definition, an image fix lands once; where they don't, fixing
+one pipeline re-creates the incident in the other.
 
 ---
 
 ## 8. Workspace hygiene — declare what things are
 
-1. **The workspace MUST declare what each top-level unit is**: maintained code unit, sandbox
-   or spike, read-only legacy reference, generated docs, secrets store. The declaration (the
-   profile's repo inventory; the audit prompt consumes the same table) is what lets standards
-   apply to maintained units only — without it, audits burn effort on sandboxes and agents
-   "fix" legacy reference code that is deliberately frozen.
-2. **Secrets live outside the repos** — a dedicated ignored directory or a secrets manager —
-   **and are never committed.** Policy detail and scanning: `security.md`.
-3. **One env-file policy across all repos**: commit an example env file, ignore real ones —
-   and never the state "tracked despite matching `.gitignore`", observed in one audited repo.
-   It was harmless there (only public client vars), but it means the ignore file no longer
-   describes reality, and the next tracked-despite-ignored file may not be harmless.
-4. **`.gitignore` carries the same core entries in every repo** (dependencies, build output,
-   env files, OS junk); framework-specific lines layer on top.
+### 8.1 The workspace MUST declare what each top-level unit is
+
+Maintained code unit, sandbox
+or spike, read-only legacy reference, generated docs, secrets store. The declaration (the
+profile's repo inventory; the audit prompt consumes the same table) is what lets standards
+apply to maintained units only — without it, audits burn effort on sandboxes and agents
+"fix" legacy reference code that is deliberately frozen.
+
+### 8.2 Secrets live outside the repos
+
+A dedicated ignored directory or a secrets manager —
+**and are never committed.** Policy detail and scanning: `security.md`.
+
+### 8.3 One env-file policy across all repos
+
+Commit an example env file, ignore real ones —
+and never the state "tracked despite matching `.gitignore`", observed in one audited repo.
+It was harmless there (only public client vars), but it means the ignore file no longer
+describes reality, and the next tracked-despite-ignored file may not be harmless.
+
+### 8.4 `.gitignore` carries the same core entries in every repo
+
+(dependencies, build output,
+env files, OS junk); framework-specific lines layer on top.
 
 ---
 
@@ -277,19 +358,19 @@ Before merging a change that touches tooling, scripts, dependencies, or CI:
 CI checks that make this standard enforceable rather than aspirational. Each maps to a rule;
 most are a few lines of shell:
 
-- **Formatter drift check:** byte-diff each repo's formatter config against the canonical
+- **[tooling-and-workspace.GR1]** **Formatter drift check:** byte-diff each repo's formatter config against the canonical
   copy; fail on any difference (§4.1).
-- **Script-vocabulary check:** assert the required script names exist in every
+- **[tooling-and-workspace.GR2]** **Script-vocabulary check:** assert the required script names exist in every
   `package.json` (a `jq` one-liner per repo) (§3).
-- **Frozen-lockfile installs only** in CI; fail if the lockfile would change (§2.2).
-- **Foreign-lockfile tripwire:** fail if another manager's lockfile appears anywhere (§2.4).
-- **Engines/packageManager presence check** across all repos, values compared for equality
+- **[tooling-and-workspace.GR3]** **Frozen-lockfile installs only** in CI; fail if the lockfile would change (§2.2).
+- **[tooling-and-workspace.GR4]** **Foreign-lockfile tripwire:** fail if another manager's lockfile appears anywhere (§2.4).
+- **[tooling-and-workspace.GR5]** **Engines/packageManager presence check** across all repos, values compared for equality
   and against the CI image's Node version (§2.3).
-- **Version-alignment check** over the profile's shared-dependency list — syncpack in a
+- **[tooling-and-workspace.GR6]** **Version-alignment check** over the profile's shared-dependency list — syncpack in a
   monorepo, a diff script in a polyrepo (§5.2).
-- **Generated-artifact freshness:** where regeneration is cheap, regenerate in CI and fail on
+- **[tooling-and-workspace.GR7]** **Generated-artifact freshness:** where regeneration is cheap, regenerate in CI and fail on
   diff (§6; the API-types variant lives in `api-contracts-and-codegen.md`).
-- **Arch assertion:** the build script asserts its own `arch`/Node major against the declared
+- **[tooling-and-workspace.GR8]** **Arch assertion:** the build script asserts its own `arch`/Node major against the declared
   deploy target before packaging bundled `node_modules` (§7.3).
 
 ---

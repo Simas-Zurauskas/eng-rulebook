@@ -1,8 +1,8 @@
 # Configuration & Environment Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs how configuration enters a system: env vars and boot validation, client-bundle
@@ -28,6 +28,17 @@ endpoints, build/runtime coupling, `.env` hygiene. Not its lane:
 - **Whether a config comment tells the truth** → the comment standard
   (`comment-standard.md`). This standard owns the *direction
   of derivation*: required-ness is defined by code; comments and docs follow it (§2.2).
+
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| The Twelve-Factor App, Factor III "Config" | **Living, and mid-revision — the dangerous case.** The published site still serves the original text (marked *last updated 2017*, by Adam Wiggins); a community revision in the `twelve-factor/twelve-factor` repository is being drafted on a `next` branch and states it will *replace* that published version. Cite the factor's principle, never an edition — the principle is what §1 and §9 rest on |
+| Next.js `NEXT_PUBLIC_` prefix | **Living framework convention, deliberately unpinned.** The documented *behaviour* is what §5 rests on: prefixed values are substituted into the bundle at build time, so a changed value needs a rebuild, not a restart |
+| Expo `EXPO_PUBLIC_` prefix | **Living framework convention, deliberately unpinned.** Expo's own docs warn such values "will be visible in plain-text in your compiled application" — §5's rule, stated by the vendor |
+| `NODE_ENV` | **No versioned specification to pin.** Its value is decided by whichever toolchain runs last — e.g. esbuild's build API substitutes `process.env.NODE_ENV` as `"production"` when minification is enabled and `"development"` otherwise. Having nothing to pin *is* §4's argument for owning a separate environment variable |
+| Env-schema validators (e.g. Zod, envalid, t3-env) | **Labelled examples, deliberately unpinned.** The obligation is "parse at boot" (§2.3); which library does it is a project choice, recorded in Appendix A |
 
 ---
 
@@ -162,15 +173,23 @@ Most "should this be an env var?" arguments are a missing bin assignment. Three 
 
 Rules on the bins:
 
-- **Bin 1:** the declaration cites its source ("cap verified <date> against <vendor>'s
-  API docs"). An unlabelled magic number cannot be re-verified and will be "fixed".
-- **Bin 2:** apply the stored value at **consume time**, never baked into stored
-  derivatives — otherwise an edit cannot take effect and stale copies ship forever.
-- **Bin 3:** define per constant what a client does when the endpoint is unreachable —
-  **stale-tolerant fallback** (a committed literal; fine for display), **hide until
-  loaded** (anything money-adjacent), or **fail**. A committed fallback literal is a
-  cross-repo mirror — pin it or declare it unpinned (comment standard §3.3), and list
-  it in Appendix A.
+### 6.2 Bin 1 — an externally-imposed constant cites its source
+
+The declaration cites its source ("cap verified <date> against <vendor>'s API docs").
+An unlabelled magic number cannot be re-verified and will be "fixed".
+
+### 6.3 Bin 2 — a product-editable value is applied at consume time
+
+Apply the stored value at **consume time**, never baked into stored derivatives —
+otherwise an edit cannot take effect and stale copies ship forever.
+
+### 6.4 Bin 3 — every shared constant declares its unreachable-endpoint behaviour
+
+Define per constant what a client does when the endpoint is unreachable —
+**stale-tolerant fallback** (a committed literal; fine for display), **hide until
+loaded** (anything money-adjacent), or **fail**. A committed fallback literal is a
+cross-repo mirror — pin it or declare it unpinned (comment standard §3.3), and list
+it in Appendix A.
 
 ### 6.1 Partial adoption is worse than none — a named failure
 
@@ -288,22 +307,22 @@ Before merging config-touching work:
 
 CI checks that make this standard enforceable rather than aspirational:
 
-- **Lint-ban raw `process.env`** outside the env module(s) (e.g. an ESLint restriction
+- **[config-and-environment.GR1]** **Lint-ban raw `process.env`** outside the env module(s) (e.g. an ESLint restriction
   with a path allowlist). Enforces §2.1 permanently.
-- **Boot smoke test:** import (or start) the built entrypoint against exactly the
+- **[config-and-environment.GR2]** **Boot smoke test:** import (or start) the built entrypoint against exactly the
   manifest's var set — proves the manifest is complete *and* the guard passes with it.
-- **Manifest sync check:** a test diffing the env module's accessor calls against the
+- **[config-and-environment.GR3]** **Manifest sync check:** a test diffing the env module's accessor calls against the
   manifest's var list; fails on a var present in one and not the other.
-- **Environment-enum test:** feed the boot guard an out-of-list environment value and
+- **[config-and-environment.GR4]** **Environment-enum test:** feed the boot guard an out-of-list environment value and
   assert refusal — pins §4 against a "temporary" third value appearing unvalidated.
-- **Public-prefix allowlist:** CI fails when a public-prefixed var not in a committed,
+- **[config-and-environment.GR5]** **Public-prefix allowlist:** CI fails when a public-prefixed var not in a committed,
   reviewed allowlist appears. Turns §5's review event into a gate.
-- **Config-endpoint adoption pin:** a lint/grep gate fails when a literal copy of a
+- **[config-and-environment.GR6]** **Config-endpoint adoption pin:** a lint/grep gate fails when a literal copy of a
   served constant reappears outside its declared fallback site; clients type their
   consumption off the generated response schema (→ `api-contracts-and-codegen.md`).
-- **Build-arch assertion:** the build fails when the CI machine's architecture differs
+- **[config-and-environment.GR7]** **Build-arch assertion:** the build fails when the CI machine's architecture differs
   from the declared deploy architecture while the artifact ships compiled deps.
-- **Test-seed completeness is self-enforcing** — keep the suite importing the real env
+- **[config-and-environment.GR8]** **Test-seed completeness is self-enforcing** — keep the suite importing the real env
   module so a new unseeded required var fails CI at import; never mock the module away.
 
 ---
@@ -313,7 +332,7 @@ CI checks that make this standard enforceable rather than aspirational:
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
 > Copy the tables into the project's profile (e.g. `profiles/config-profile.md`)
 > and fill them there. Agents: read the profile before adding or gating on config —
-> §4, §6.3, and §8 are not decidable without it.
+> §4, §6.4, and §8 are not decidable without it.
 
 **Environments (§4) — the closed enum:**
 
@@ -327,7 +346,7 @@ CI checks that make this standard enforceable rather than aspirational:
 | --- | --- | --- | --- | --- |
 | | _required / optional (default)_ | _presence / numeric / enum / minLength / URL_ | _server-only / public prefix_ | |
 
-**Config-endpoint constants (§6.3):**
+**Config-endpoint constants (§6.4):**
 
 | Constant | Served field | Consumers (all clients!) | Fallback semantics | Fallback literal location (if any) |
 | --- | --- | --- | --- | --- |

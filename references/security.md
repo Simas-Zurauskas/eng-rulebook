@@ -1,8 +1,8 @@
 # Security Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 > Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs every trust boundary of a multi-surface product: who gets in (authN/Z), how sessions
@@ -18,17 +18,26 @@ code-generated from the running API's spec. Rules are stack-agnostic; tools are 
 
 **Owns:** authN/Z, session lifecycle and revocation, input validation and injection (incl. SSRF
 and uploads), secrets, transport and headers, rate limiting, storage posture, dependency audit,
-security-event definitions, data-protection minimums.
+security-event definitions.
 **Does not own** (one-line cross-refs only):
 
 - Stored-state atomicity — atomic claims, fencing, idempotency → `data-integrity.md`.
 - Behaviour when dependencies fail — timeouts, retries, backoff → `resilience.md`.
 - Env boot guards and environment-value validation → `config-and-environment.md`.
-- Logging/alerting mechanics → `observability.md` (security events MUST be alertable — OWASP Top 10:2025 A09).
+- Personal-data inventory, retention, deletion/export, egress, residency, consent → `data-protection.md`.
+- Logging/alerting mechanics → `observability.md` (security events MUST be alertable — OWASP Top 10:2025 A09 Security Logging and Alerting Failures).
 
-**External anchors** (name + version, never URLs): OWASP Top 10:2025 · OWASP ASVS 5.0 ·
-RFC 9700 "OAuth 2.0 Security Best Current Practice" (2025) · NIST SP 800-63B · OWASP Password
-Storage Cheat Sheet · EU GDPR.
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| OWASP Top 10 | **:2025** edition. OWASP publishes no release date on the edition page — cite the edition, never a date |
+| OWASP ASVS | **5.0** (5.0.0). Body prose pins chapters as `V<N> <exact chapter name>` and stops there — a requirement-level id renumbers between revisions, so a pinned `7.4.3` rots silently while still reading as precise. Chapter-by-chapter coverage against the §1 target: `_coverage-asvs.md` |
+| RFC 9700 / BCP 240 | *"Best Current Practice for OAuth 2.0 Security"* — note the title order; Best Current Practice, not a Proposed Standard |
+| NIST SP 800-63B | **-4 (Rev. 4)**, July 2025. Supersedes the 2017/2020 Rev. 3 — a bare "SP 800-63B" retrieves Rev. 3, whose different password floor silently confirms the wrong rule |
+| OWASP Password Storage Cheat Sheet | **Living document, unversioned.** Cite it for *method*; the actual parameters are pinned in the project profile with the date they were checked |
+| EU GDPR | Regulation (EU) 2016/679 |
 
 ## 1. Core principle
 
@@ -49,12 +58,14 @@ is for targets whose compromise is catastrophic, and adopting it by default is p
 not rigour. The project profile records the chosen level and every consciously excluded
 requirement with its justification — an exclusion nobody wrote down is a gap, not a
 decision. This one declaration turns "we follow OWASP" from a vibe into a checkable claim:
-reviews and audits verify against the declared level.
+reviews and audits verify against the declared level. **Which L2 chapters this library states a
+rule for is itself written down**, chapter by chapter, in `_coverage-asvs.md` — read that delta
+before declaring an exclusion; a target nobody can check is the vibe this paragraph replaces.
 
 ## 2. Sessions and revocation — one design per client class
 
 *OWASP Top 10:2025 A07 Authentication Failures; ASVS 5.0 V6 Authentication / V7 Session
-Management; RFC 9700; NIST SP 800-63B.*
+Management, V9 Self-contained Tokens; RFC 9700; NIST SP 800-63B.*
 
 ### 2.1 Tier sessions by client-class threat model
 
@@ -87,9 +98,11 @@ fill is an unfinished design, not a documentation gap.**
 Bumping one family and not another leaves the *post-compromise action* ineffective: in the same
 workspace, reset bumped the access-token version but never deleted refresh rows — and the
 refresh endpoint ignored that version — so a stolen admin refresh session survived the exact
-step every incident runbook prescribes (ASVS 5.0 V7 / NIST SP 800-63B require terminating other
-sessions here). Enumerate the families — access, refresh, long-lived bearers, API keys — and
-verify each dies; the acting session may be re-issued as an explicit, commented carve-out.
+step every incident runbook prescribes. **This standard is deliberately stricter than its anchors
+here:** ASVS 5.0 V7 Session Management requires only that the application *offer* termination of
+other sessions, and SP 800-63B-4 does not mandate it either — the MUST above rests on the audited
+incident, not on a borrowed requirement. Enumerate the families — access, refresh, long-lived
+bearers, API keys — and verify each dies; the acting session may be re-issued as a commented carve-out.
 
 ### 2.4 Refresh rotation needs reuse detection — and reuse detection needs a quiet client
 
@@ -112,10 +125,25 @@ token, revoke the lineage on detection. The other half keeps honest clients from
   audience and issuer checked against configured allowlists.
 - One-shot tokens (magic links, password reset) are ≥256-bit random, stored only as **keyed-HMAC
   hashes**, single-use via an atomic consume, expiry asserted in-query, uniform failures (§5.5).
-- Passwords hashed with an adaptive KDF at currently published parameters — e.g. argon2id at
-  the OWASP Password Storage Cheat Sheet minimums, or bcrypt at work factor ≥ 10. Password
-  *rules* per NIST SP 800-63B: minimum length ≥ 8 with much longer allowed, no composition
-  rules, no forced periodic rotation.
+- **Password storage:** an adaptive KDF at currently published parameters — e.g. argon2id at
+  the OWASP Password Storage Cheat Sheet minimums, or bcrypt at work factor ≥ 10. Record the
+  parameters and the date they were last checked in the profile; the Cheat Sheet is a living
+  document, so "at the published minimums" is only checkable against a dated snapshot. With
+  bcrypt, note the **72-byte truncation**: input beyond 72 bytes is silently ignored, which
+  becomes load-bearing the moment you accept long passphrases — pre-hash or choose argon2id.
+- **Password policy:** accept ≥64 characters and hash exactly what was submitted (no
+  truncation, no silent normalisation that changes the bytes). **No composition rules and no
+  forced periodic rotation** — both are measured to reduce entropy in practice. Screen every
+  new-or-changed password against a known-compromised corpus; scope that screen exactly as
+  NIST does, to *establishing or changing* a password, because for existing stored secrets you
+  hold a hash and cannot screen it.
+- **Length floor — reported, not adopted here.** NIST SP 800-63B-4 §3.1.1.2 sets **≥15
+  characters where the password is used as a single-factor authentication mechanism**, and permits
+  ≥8 **only** where it is *used only as part of* multi-factor authentication — dropping that "only"
+  turns the rule back into the defect it replaced. This library adopts **neither number**: a
+  product-UX default every adopting workspace inherits on skill copy is a business decision, not a
+  library one. **The profile declares the floor**, and a floor below the anchor's is an excluded
+  requirement carrying a justification (§1), never a silent default.
 - Authorization applied at the **router level** — authenticate + role-check once per mount — with
   every handler owner-scoping its queries by the authenticated user id.
 
@@ -126,14 +154,26 @@ The revocation lever, role gates, and rotation/reuse logic MUST have tests. The 
 path. Minimum suite: valid token passes; bumped version → 401; deleted user → 401; non-admin →
 403; reuse of a rotated refresh token → lineage revoked; password change kills every other family.
 
+### 2.7 A credential the browser attaches by itself never authorises a state change alone
+
+Cross-site request forgery: a page on any origin makes a signed-in user's browser fire a request at
+your API, the browser attaches the session cookie unasked, and the server performs the write as
+that user. The server obligation: **a write authorised by an ambient credential MUST carry a
+second, non-ambient proof, verified before the handler runs.** Without it the API's authorisation
+check passes on a request the user never intended, and nothing downstream can tell the difference.
+
+The applicability test, the token mechanics and the `SameSite` caveat are `web-client.md` §6's —
+that file owns this subject (`_authoring.md` § Library index). Stated here only because the
+enforcement point is the server, and a browser-side control the API does not require is not a
+control.
+
 ## 3. Bootstrap credentials, seeds, and backdoors
 
 *OWASP Top 10:2025 A07; A02 Security Misconfiguration.*
 
 - **No hardcoded credentials, ever, in any repo** — including "dev prefill" constants in client
-  sign-in screens, fixtures with real emails, and seed scripts. Build-time stripping does not
-  help: git history is forever. The audit's single critical finding was exactly this — a client
-  repo carrying a real admin email + password literal matching the API's committed seed constants.
+  sign-in screens, fixtures with real emails, and seed scripts. Build-time stripping does not help:
+  git history is forever. The audit's single critical finding was exactly this.
 - **Bootstrap admin comes from the environment, strength-validated, or boot fails.** A seed that
   falls back to a weak literal is a committed backdoor. Unset, short, or known-weak → refuse to
   start (`config-and-environment.md` owns the fail-fast pattern).
@@ -147,11 +187,10 @@ path. Minimum suite: valid token passes; bumped version → 401; deleted user �
 *OWASP Top 10:2025 A02 Security Misconfiguration.*
 
 **"Non-production" is not an auth tier.** Staging and test hosts are internet-reachable
-deployments holding real user data. The audited workspace mounted deliberately unauthenticated
-debug routes — "the dev-only mount is the access control" — whenever the environment was not
-production. On the shared test host, anyone who found the hostname could dump every push token
-*with the owner's email* and broadcast phishing-grade notifications to every enrolled device,
-unthrottled — rate limiters were also off outside production.
+deployments holding real user data. The audited workspace mounted unauthenticated debug routes
+whenever the environment was not production — "the dev-only mount is the access control" — so on
+the shared test host, anyone who found the hostname could dump every push token *with its owner's
+email* and broadcast phishing-grade push, unthrottled (limiters were off outside production too).
 
 - Debug/introspection surfaces MUST be gated by **authentication + role**, or bound to localhost/
   a private interface. An environment check may narrow the mount further — never alone.
@@ -159,14 +198,12 @@ unthrottled — rate limiters were also off outside production.
   the permissive posture for *every* env-keyed gate at once (`config-and-environment.md`).
 - A security control inert outside production (rate limiter, secure-cookie flag) is a control
   **never exercised before it matters**. Default to production posture; override locally.
-- Client-side route guards are UX, not access control: an admin bundle served to unauthenticated
-  visitors ships whatever is compiled into it (in the audit: proprietary prompt text and internal
-  pricing). Enforce authorization server-side; keep privileged data out of bundles.
+- Client-side route guards are UX, not access control — enforce authorization server-side and
+  keep privileged data out of bundles (`web-client.md` §4.1, §4.2).
 
 ## 5. Input validation and injection
 
-*OWASP Top 10:2025 A05 Injection; A01 Broken Access Control (which subsumes SSRF); ASVS 5.0
-input-validation chapter.*
+*OWASP Top 10:2025 A05 Injection; A01 Broken Access Control (which subsumes SSRF); ASVS 5.0 V1 Encoding and Sanitization, V2 Validation and Business Logic, V5 File Handling.*
 
 ### 5.1 Schema-validate every boundary
 
@@ -184,22 +221,30 @@ mount larger parsers only on the routes that need them, **after** auth and rate 
 
 ### 5.3 Uploads by allowlist
 
-Accept uploads only by allowlisted content type, verify the claimed type against the bytes
-(decode or magic-number check) server-side, cap size per route (§5.2). Client checks are UX only.
+Accept uploads only by allowlisted content type, verify the claimed type against the bytes (decode or magic-number check) server-side, cap size per route (§5.2). Client checks are UX only.
 
 ### 5.4 SSRF: never fetch caller-supplied URLs server-side
 
 Default posture: media and documents arrive **inline** (data URIs, multipart bodies), size-capped
 by §5.2 — the server never dereferences a URL a caller chose. Where fetch-by-URL is genuinely
 required, proxy it through **layered** allowlists: host allowlist + redirect refusal +
-resolved-IP-is-public check. One layer is a bypass waiting for a redirect or a DNS trick. The
-audited workspace held this line at every media path — the reason SSRF is absent from its findings.
+resolved-IP-is-public check. One layer is a bypass waiting for a redirect or a DNS trick.
 
 ### 5.5 No enumeration oracles
 
 Account-existence probes — forgot-password, signup, token redemption — return uniform responses
 for hit and miss. Do not "improve" a deliberate always-200 into a 404-on-unknown; that
 reintroduces enumeration. Mark these deliberate (comment standard §3.4) so nobody "fixes" them.
+
+### 5.6 Caller-influenced path segments are canonicalised, then bounds-checked against their root
+
+Any caller-influenced value that becomes part of a filesystem path or an object-store key — an
+upload name, an export id, a template or locale slug — MUST be **canonicalised** (decode once,
+resolve `..` and symlinks to a single absolute form), the result **verified to lie inside the
+intended root**, and **rejected** when it does not. Sanitise-and-continue is the defect: stripping
+`../` once turns `....//` into `../`, and each decoding layer re-creates the escape. Prevents
+reading or overwriting files and objects the caller was never authorised to reach — a config file,
+a sibling tenant's media — through a string §5.1 admitted as well-formed.
 
 ## 6. Secrets
 
@@ -215,11 +260,11 @@ reintroduces enumeration. Mark these deliberate (comment standard §3.4) so nobo
   served four duties (JWT signing, two HMAC domains, a key derivation): rotating it invalidates
   all four at once. Reuse is a rotation-coupling decision — document it where the secret is defined.
 - **Mask secrets in logs, error reports, and generated docs.** A crash report that prints an
-  Authorization header is a leak with a retention policy.
+  Authorization header — or a subject's email — is a leak with a retention policy.
 
 ## 7. Transport, headers, and the web client
 
-*OWASP Top 10:2025 A02; ASVS 5.0 communication and web-frontend chapters.*
+*OWASP Top 10:2025 A02; ASVS 5.0 V12 Secure Communication, V3 Web Frontend Security.*
 
 - TLS everywhere; cookies `Secure` in every internet-reachable environment (§4), `HttpOnly`,
   `SameSite`, and **path-scoped** to the one route that consumes them — a refresh cookie scoped
@@ -228,15 +273,12 @@ reintroduces enumeration. Mark these deliberate (comment standard §3.4) so nobo
   with nonces for server-rendered pages — plus `frame-ancestors`/X-Frame-Options, HSTS, nosniff,
   Referrer-Policy; framework fingerprint headers off. The audited admin panel shipped none — its
   only clickjacking defence was a cookie attribute owned by a different repo's code.
-- **Token storage:** web access tokens live in memory (module closure/state) — never
-  localStorage/sessionStorage, which any XSS reads wholesale. Persistence across reloads is the
-  HttpOnly refresh cookie's job. Mobile bearers live in the OS keystore.
 - **XSS sink hygiene:** no string-to-DOM injection (`innerHTML`-class, `dangerouslySetInnerHTML`,
   `eval`-class) without a sanitizer and a review comment. CSP contains the sink you missed.
 
 ## 8. Rate limiting
 
-*OWASP Top 10:2025 A07; ASVS 5.0 V6 (anti-automation).*
+*OWASP Top 10:2025 A07; ASVS 5.0 V2 Validation and Business Logic (anti-automation), V6 Authentication.*
 
 - **Strict budgets on credential endpoints** — sign-in, sign-up, OAuth exchange, password flows —
   in small fixed windows, separate from the global budget.
@@ -252,8 +294,7 @@ reintroduces enumeration. Mark these deliberate (comment standard §3.4) so nobo
 - **Keep bootstrap reads out of the credential budget** — a session-bootstrap `GET /me` or a
   verification poll in the strict window locks whole NAT pools out of sign-in. Limit credential
   writes strictly; let reads ride the global budget.
-- Budgets on paid/expensive operations are quota design, not only abuse control — keep a durable
-  per-user daily cap on every spend surface.
+- Budgets on paid/expensive operations are quota design, not only abuse control — keep a durable per-user daily cap on every spend surface.
 
 ## 9. Storage access posture
 
@@ -266,26 +307,25 @@ reintroduces enumeration. Mark these deliberate (comment standard §3.4) so nobo
   the public copies, or "delete" leaves the shared artifact live (cascades: `data-integrity.md`).
 - Every object route is **owner-scoped by the authenticated user id in the query itself**;
   admin-wide access goes through the admin role gate, not a broader policy.
-- Comments describing bucket visibility MUST match the live policy — the audit found a "bucket is
-  public-read" comment on a private bucket, the inverted-model rot the comment standard bans.
+- Comments describing bucket visibility MUST match the live policy (`comment-standard.md`).
 
 ## 10. Dependency audit
 
 *OWASP Top 10:2025 A03 Software Supply Chain Failures.*
 
-- CI runs a vulnerability scanner (e.g. osv-scanner, `npm audit` / `yarn npm audit`) against
-  every repo's lockfile, **severity-gated**: critical/high block the merge; lower severities get
-  scheduled triage, not silence. Lockfiles committed, installs frozen (`tooling-and-workspace.md`).
+- CI runs a vulnerability scanner (e.g. osv-scanner, `npm audit`) against every repo's lockfile,
+  **severity-gated**: critical/high block the merge; lower severities get scheduled triage, not
+  silence. Lockfile and frozen-install policy: `tooling-and-workspace.md`.
 - Every dependency of a web client executes in the privileged origin — adding a package to an
   admin surface is a security decision, and CSP (§7) bounds the damage when one is compromised.
 
 ## 11. Security events — logged and alertable
 
-*OWASP Top 10:2025 A09 Logging & Alerting Failures; ASVS 5.0 logging chapter.*
+*OWASP Top 10:2025 A09 Security Logging and Alerting Failures; ASVS 5.0 V16 Security Logging and Error Handling.*
 
-`observability.md` owns the mechanics (structured events, alarm bindings, masking) and points
-here for the definitions. The MUST-log set — each with actor, outcome, and correlation id,
-never the credential value itself:
+`observability.md` owns the mechanics (structured events, alarm bindings, masking) and points here
+for the definitions. The MUST-log set — each with actor, outcome and correlation id, never the
+credential value itself:
 
 - Sign-in success **and failure**, per tier — including OAuth exchanges and failed provider
   verifications.
@@ -296,50 +336,35 @@ never the credential value itself:
 - Admin actions on user data.
 - Rate-limit trips on credential endpoints (§8) — a sustained trip is an attack signature.
 
-A security event that only lands in a log file is reviewed after the incident, not during it —
-wire these into the security alarm class of `observability.md` §3.
+Wire these into the security alarm class of `observability.md` §3 — an event that only lands in a log file is reviewed after the incident, not during it.
 
-## 12. Data-protection minimums
+## 12. Personal data — the security half
 
-*EU GDPR as the named floor; stricter regimes (children's data, health, payments) are a
-profile flag, never a silent assumption.*
+*`data-protection.md` owns the obligations — inventory, retention, deletion/export, egress,
+residency, consent. This section owns only where they meet a security control.*
 
-Not a compliance program — the four properties any personal-data product must be able to
-demonstrate on demand:
-
-- **Deletion is complete and provable.** Account deletion covers every store — records,
-  sessions, refresh tokens, push tokens — every storage prefix *including public/shared
-  copies* (§9), and deletable third-party artifacts. Cascade mechanics (loud partial
-  failure) live in `data-integrity.md`; this standard adds the obligation: enumerate the
-  stores in the profile and test the cascade against that list, not against memory.
-- **Retention is declared.** Every PII-bearing collection and bucket prefix has a stated
-  retention — a TTL, a lifecycle rule, or an explicit "kept until account deletion" — in
-  the profile. "We never decided" is the finding.
-- **Minimization at the edges.** PII stays out of logs, error reports, analytics, and
-  generated docs (`observability.md` owns masking); collect what the feature needs, not
-  what might be useful later.
-- **Know your regime.** If the product touches children's data or another specially
-  protected category, the profile names the regime and the added obligations — the defaults
-  here are calibrated for ordinary personal data.
+- **A data-protection regime is not an access-control design.** Personal data is protected by
+  the same owner-scoping, role gates and storage posture as everything else (§2, §9); a
+  retention policy does not authorise anything.
 
 ## Failure shapes
 
 Named patterns from real audits, genericised. Recognise one, cite it by name.
 
-- **The self-reinstalling backdoor** — a boot-time seed that (re)creates a well-known admin
-  credential whenever the admin set is empty, in every environment; any ops event re-arms it, and
-  the matching literal committed in a client repo turns a weakness into a standing takeover. (§3)
+- **The self-reinstalling backdoor** — a boot-time seed re-creating a well-known admin credential
+  whenever the admin set empties, in every environment; the matching literal committed in a client
+  repo turns a weakness into a standing takeover. (§3)
 - **Staging is the front door** — an unauthenticated debug surface whose only gate is "not
   production", live on an internet-reachable test host with limiters also off: a PII dump plus
   broadcast push for anyone who finds the hostname. (§4)
 - **The reset that doesn't reset** — password change revokes one credential family and not
   another; the stolen session keeps rotating through the family nobody bumped. (§2.3)
-- **Reuse-detection friendly fire** — a per-tab-only refresh mutex plus a shared revocation
-  lever: an honest tab race is indistinguishable from theft and evicts an unrelated device, and
-  the alarm becomes noise. (§2.2, §2.4)
-- **The limiter that guards nothing** — a wrong trust-proxy hop count, a route mounted outside
-  the limited prefix, a giant body parser ahead of the limiter, a limiter inert outside
-  production: four independent ways the budget you designed is not the budget requests meet. (§8)
+- **Reuse-detection friendly fire** — a per-tab-only refresh mutex plus a shared revocation lever:
+  an honest tab race is indistinguishable from theft, evicts an unrelated device, and makes the
+  alarm noise. (§2.2, §2.4)
+- **The limiter that guards nothing** — a wrong trust-proxy hop count, a route outside the limited
+  prefix, a giant body parser ahead of the limiter, a limiter inert outside production: four ways
+  the budget you designed is not the budget requests meet. (§8)
 - **The oracle you added back** — a helpful refactor turns a deliberately uniform forgot-password
   200 into a 404-on-unknown, reintroducing account enumeration. (§5.5)
 
@@ -352,9 +377,12 @@ Before merging a change that touches a trust boundary:
 - [ ] Password change/reset still revokes **every** credential family — proven by a test?
 - [ ] No credential literal anywhere in the diff (client dev prefill and fixtures count)?
 - [ ] New surface gated by auth — not by environment name alone?
+- [ ] New/changed state-changing route that a cookie can authorise: a second, non-ambient proof verified server-side before the handler — not `SameSite` alone (§2.7)?
 - [ ] No server-side fetch of a caller-supplied URL? (If unavoidable: all three SSRF layers?)
+- [ ] Caller-influenced path or object-store key in the diff: canonicalised, then verified inside its intended root, and **rejected** — not repaired — when it escapes (§5.6)?
 - [ ] Bodies/uploads: per-route size cap, allowlisted type, parser mounted after auth + limiter?
 - [ ] New stored token: hashed (keyed HMAC), single-use, expiry asserted in-query?
+- [ ] Password path touched: the **profile's declared floor** enforced, breached-password screen wired on establish/change, long input neither truncated nor silently normalised?
 - [ ] Rate-limit map still true — new route inside the intended budget, keyed correctly?
 - [ ] Storage still private-by-default; delete path covers any public copy?
 - [ ] New dependency: scanner clean — and aware it runs in a privileged origin?
@@ -365,20 +393,18 @@ Before merging a change that touches a trust boundary:
 
 CI checks that make this standard enforceable, not aspirational:
 
-- **Secret sweep on every push** — reuse the audit prompt's patterns (private keys, cloud access
+- **[security.GR1]** **Secret sweep on every push** — reuse the audit prompt's patterns (private keys, cloud access
   keys, bearer/JWT literals, connection strings, `password =` literals) across all repos
   including clients and fixtures. New hit fails; baseline historical hits into a rotation list.
-- **Boot-guard test:** the API refuses to start with an unset or weak bootstrap-admin secret —
-  assert the refusal in a test so the guard can't be quietly deleted.
-- **Auth-boundary suite in the merge gate** (§2.6): eviction, role gates, rotation reuse,
+- **[security.GR2]** **Boot-guard test:** the API refuses to start with an unset or weak bootstrap-admin secret — assert the refusal in a test so the guard can't be quietly deleted.
+- **[security.GR3]** **Auth-boundary suite in the merge gate** (§2.6): eviction, role gates, rotation reuse,
   cross-family revocation on password change.
-- **Header probe:** an integration test asserts the full security-header set on every web
-  surface, so a config migration can't silently drop CSP.
-- **Limiter tests:** distinct client IPs map to distinct buckets behind the real proxy hop count;
+- **[security.GR4]** **Header probe:** an integration test asserts the full security-header set on every web surface, so a config migration can't silently drop CSP.
+- **[security.GR5]** **Limiter tests:** distinct client IPs map to distinct buckets behind the real proxy hop count;
   credential routes actually 429 past budget; a route outside the limited mounts fails inventory.
-- **Severity-gated dependency scan** in every repo's pipeline (§10).
-- **Env-gate inventory:** a grep-based check that every "not production"-style mount also carries
-  an auth gate or a localhost bind; a new bare env-gate fails the check.
+- **[security.GR6]** **Credential-policy tests** — one character below the **profile's declared floor** is rejected; a known-breached password is rejected on establish and on change; a 64-character password authenticates unchanged. Floor-agnostic by construction: the test reads the profile, so it stays valid whatever floor a workspace declares.
+- **[security.GR7]** **Severity-gated dependency scan** in every repo's pipeline (§10).
+- **[security.GR8]** **Env-gate inventory:** a grep-based check that every "not production"-style mount also carries an auth gate or a localhost bind; a new bare env-gate fails the check.
 
 ## Appendix A — Project profile (TEMPLATE)
 
@@ -392,6 +418,12 @@ CI checks that make this standard enforceable, not aspirational:
 | ASVS 5.0 level | Excluded requirements + justification | Review cadence |
 | --- | --- | --- |
 | | | |
+
+**Credential policy (§2.5):**
+
+| Adopted length floor | Justification if below the anchor | KDF + parameters | Blocklist source | Params last checked | Re-check cadence |
+| --- | --- | --- | --- | --- | --- |
+| | | | | | |
 
 **Session tiers (§2) — one row per client class:**
 
@@ -414,7 +446,4 @@ CI checks that make this standard enforceable, not aspirational:
 | Mount / route class | Budget | Key (IP / user id) | Before/after body parser | Shared-egress clients |
 | --- | --- | --- | --- | --- |
 
-**PII inventory & retention (§12) — one row per PII-bearing store or prefix:**
-
-| Store / prefix | PII kind | Retention | In the deletion cascade? | Regime flag (if special) |
-| --- | --- | --- | --- | --- |
+**PII inventory & retention (§12):** one inventory only — `data-protection.md`'s Appendix A owns the table; a second copy here drifts from it and both stop being trustworthy.

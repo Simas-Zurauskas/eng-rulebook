@@ -5,6 +5,14 @@ copying the **Appendix A — Project profile (TEMPLATE)** tables out of the matc
 `../references/` and filling them with this workspace's facts: spec globs, session tiers,
 state machines, env tables, version gates.
 
+**Create one with `/eng-rulebook profile <topic>`**; see what is missing with
+`/eng-rulebook profile status`. Each file carries a header stamping the library `VERSION`, the
+master's `Rev:`, the date, and the commit its facts were verified against — a profile with no
+provenance cannot be told apart from a stale one.
+
+Cells needing a human decision are written `DECIDE: <question>` rather than guessed. A
+plausible-looking guess reads as a decision the project never made.
+
 - **Living reference data, not run records.** Update a profile when the project changes;
   audits and reviews read it as the project's declared posture and verify it against code.
 - **Per-workspace by construction.** Each workspace has its own copy of this skill, so

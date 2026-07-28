@@ -1,8 +1,8 @@
 # Observability Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs how a system reports on itself: structured logging, metrics and alarms,
@@ -29,6 +29,17 @@ surfaces. It does **not** own:
   keeping it out of logs.
 - The error **envelope shape** and code vocabulary: `api-contracts-and-codegen.md` —
   this standard owns the correlation id the envelope carries.
+
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| OpenTelemetry semantic conventions | **v1.43.0**, released 2026-07-03. Stability is **per document, not global**: HTTP *spans* are Stable ("unless otherwise specified"), the HTTP document as a whole is *Mixed*, and the general **log** conventions are still *Development*. A bare "we follow OTel semconv" hides that split and can present a Development convention as settled (§3.3) |
+| RED method — Rate, Errors, Duration (Tom Wilkie) | **Named method, unversioned.** Not a specification: it names *what* to measure, never a threshold. Thresholds live in Appendix A |
+| USE method — Utilization, Saturation, Errors (Brendan Gregg) | **Named method, unversioned.** Same treatment as RED |
+| Canonical log lines (Stripe engineering blog, B. Leach) | **Unversioned article.** Cited for one shape only — one wide, field-rich line per unit of work — never for a field list |
+| Wide events / "observability 2.0" (Honeycomb) | **Vendor-authored, living, unversioned**, and partly a marketing term. Cite the practice; pin the fields you actually emit in Appendix A |
 
 ---
 
@@ -57,7 +68,9 @@ somebody must remember to look. Every rule below makes a *"we'd never know"* imp
 
 ## 2. The silent-degradation ban
 
-**2.1 Any path that degrades service quality MUST emit a metric or structured event.**
+### 2.1 Any path that degrades service quality MUST emit a metric or structured event
+
+
 That includes fallback outcomes, swallowed errors, best-effort operations, and every
 catch-and-continue. The audit-prompt rule this aligns with: **"no metric on a money or
 availability path" is a defect by definition** — consequence times plausibility, not
@@ -65,18 +78,24 @@ intent, decides severity. In the audited workspace, a container exiting non-zero
 storage probe erroring, and an archive step falling back to an expiring external URL all
 produced completed, plausible-looking deliveries — and only log lines nobody was reading.
 
-**2.2 Dev-only logging is not observability.** The same workspace had an exemplary
+### 2.2 Dev-only logging is not observability
+
+The same workspace had an exemplary
 domain-scoped logger — hard-silenced in production by design. Every degraded path logged
 through it, so production was fully instrumented and fully blind *at the same time*.
 Production visibility requires a channel that survives the production gate — a metric, an
 aggregator event, an error reporter — chosen per failure mode and recorded (Appendix A).
 
-**2.3 Every non-best rung of a degradation ladder emits.** Ladder *design* belongs to
+### 2.3 Every non-best rung of a degradation ladder emits
+
+Ladder *design* belongs to
 `resilience.md`; this standard requires each rung below the best outcome to emit a
 degraded-delivery metric carrying the rung as a dimension. The fix that closed the
 founding finding was exactly this metric.
 
-**2.4 A swallowed error MUST be loud somewhere.** A catch block that continues carries
+### 2.4 A swallowed error MUST be loud somewhere
+
+A catch block that continues carries
 three obligations: a structured log with context, a comment stating why the swallow is
 safe (see the comment standard), and — if service quality degraded — an emit under 2.1.
 The comment alone is never sufficient: it informs the next editor, not the operator on
@@ -114,8 +133,10 @@ attempts-exhausted events.
   wrong telemetry posture.
 - **Metric names are a contract.** One namespace per system; names recorded in the
   project profile (Appendix A) with their alarm bindings. Follow OpenTelemetry semantic
-  conventions where one exists (the 1.4x line: HTTP conventions are stable, log
-  conventions still evolving — prefer them, don't block on them).
+  conventions where one exists — but read the per-document status first: HTTP *spans* are
+  Stable, the HTTP document overall is *Mixed*, and the general **log** conventions are
+  still *Development*. Prefer them, don't block on them, and never quote a
+  Development convention as though it were settled.
 
 ### 3.4 Signal hygiene — an ignored alarm is no alarm
 
@@ -128,11 +149,26 @@ attempts-exhausted events.
   mean "credential theft" untrustworthy. If a signal false-fires on known-benign paths,
   fix the source first, or the alarm trains people to click it away.
 
+### 3.5 Metric labels are a closed, enumerated, low-cardinality set
+
+Every label (dimension) on a metric MUST come from a **set you can write out** — status class,
+outcome, ladder rung, queue name, region — and an emit site MUST NOT pass a value it did not
+choose: never a user id, request id, session id, error message, or a path carrying ids inline
+(`/users/42/jobs/9f3`), which is templated to its route pattern before it becomes a label.
+Cardinality is the *product* of the label sets, so one unbounded label multiplies every series it
+touches, and the failure is not a cluttered dashboard: it is **the metrics backend** — ingestion
+rejecting writes, the store OOMing — taking down the alarms of every other system sharing it, at
+the moment the traffic that created those labels most needs them. Per-entity detail belongs on a
+log line (§4.3), which is indexed for exactly that. Record each metric's label set beside its name
+in Appendix A; a label not listed there is not emitted.
+
 ---
 
 ## 4. One structured logger per repo
 
-**4.1 Exactly one logger module per repo** — leveled (`debug`/`info`/`warn`/`error`),
+### 4.1 Exactly one logger module per repo
+
+Leveled (`debug`/`info`/`warn`/`error`),
 **domain-scoped** (one tag per subsystem: http, auth, jobs, storage, push, …), per-domain
 toggles, one global gate, one call shape: `log.<domain>.<level>(message, fields)`. No
 raw `console.*` scattershot; the single legitimate carve-out is process-fatal boot
@@ -140,13 +176,17 @@ guards that MUST print even where the logger is gated (missing env var, database
 refusing to connect) — those bypass deliberately, and say so. Domain tags make one
 concern greppable and let production quiet a noisy domain without touching call sites.
 
-**4.2 Log the decision points, not just the errors.** The highest-value lines record
+### 4.2 Log the decision points, not just the errors
+
+The highest-value lines record
 where code *chose a path*: claimed, classified-transient, retrying-with-backoff,
 degraded-to-X, reclaimed-stale-lease, gave-up. An error line with no preceding decisions
 forces the reader to reconstruct the path from source. If §2's metric says *how often*,
 these lines say *why this one*.
 
-**4.3 Structured fields over string interpolation.** Fields are queryable; prose is not.
+### 4.3 Structured fields over string interpolation
+
+Fields are queryable; prose is not.
 `log.jobs.info('claimed', { jobId, kind, attempt })` beats interpolating the id into the
 message every time someone has to aggregate it. Prefer one wide, field-rich line per
 unit of work — Stripe's canonical log lines; the wide-events practice popularised by
@@ -156,22 +196,30 @@ Honeycomb — carrying correlation id, identity, outcome, duration, and decision
 
 ## 5. Correlation — one id, edge to worker to user
 
-**5.1 One request/job id travels the full path.** Assigned at the edge, stored on the
+### 5.1 One request/job id travels the full path
+
+Assigned at the edge, stored on the
 job record it spawns (or logged beside the job's own id at handoff), present in every
 log line the work produces, and returned to the client in the error envelope (shape:
 `api-contracts-and-codegen.md`; this standard requires the id in it).
 
-**5.2 The correlation middleware mounts FIRST** — before body parsing, CORS, auth,
+### 5.2 The correlation middleware mounts FIRST
+
+Before body parsing, CORS, auth,
 anything that can produce a response. The audited API mounted its JSON parser and CORS
 handler *before* the request-id middleware, so malformed-body and origin-rejection
 errors carried a null id — precisely the error classes hardest to reproduce.
 
-**5.3 No emit site hardcodes a null id.** The same API's auth helpers emitted
+### 5.3 No emit site hardcodes a null id
+
+The same API's auth helpers emitted
 `requestId: null` literally on every 401/403 — its **highest-volume error class** was
 the one class support could not correlate. If a helper can't reach the request context,
 thread it; the inconvenience is the point.
 
-**5.4 The grep test.** A user-reported id MUST resolve to the full path: edge access
+### 5.4 The grep test
+
+A user-reported id MUST resolve to the full path: edge access
 line, decision lines (§4.2), worker lines, terminal outcome. Run the grep before
 shipping — if any hop drops the id, correlation is theater, and you find out mid-incident.
 
@@ -179,18 +227,24 @@ shipping — if any hop drops the id, correlation is theater, and you find out m
 
 ## 6. Log hygiene
 
-**6.1 No secrets, tokens, credentials, or PII in logs — mask, don't omit.** The masking
+### 6.1 No secrets, tokens, credentials, or PII in logs — mask, don't omit
+
+The masking
 rule (shared with the audit prompt): **enough to identify, never enough to use** — a
 token's last four characters, a hash prefix, a user id instead of an email. What counts
 as secret or PII is `security.md`'s lane; this rule is about the log sink, which outlives
 the request, replicates into aggregators, and has wider read access than the database.
 
-**6.2 Bounded payload logging.** NEVER log request or response bodies wholesale — for
+### 6.2 Bounded payload logging
+
+NEVER log request or response bodies wholesale — for
 size and for sensitivity. The audited pipeline carried multi-megabyte base64 media
 fields inside job payloads; one careless `log(job)` is an unreadable log and a PII
 spill in one line. Log ids, lengths, counts, and shapes — never the payload.
 
-**6.3 Level discipline keeps downstream filters honest.** `error` means an operator may
+### 6.3 Level discipline keeps downstream filters honest
+
+`error` means an operator may
 need to act; `warn` means degraded-but-handled; routine flow is `info`/`debug`. Anything
 keyed on level — overlays, alarms on error-rate, aggregator retention — inherits your
 level choices (§3.4, §7.2).
@@ -199,20 +253,25 @@ level choices (§3.4, §7.2).
 
 ## 7. Client-side debug surfaces
 
-**7.1 Debug domains ship OFF in production builds — and the shipped value is VERIFIED,
-not assumed.** An audited mobile logger had a domain whose comment said "(off by
+### 7.1 Debug domains ship OFF in production builds — and the shipped value is VERIFIED, not assumed
+
+An audited mobile logger had a domain whose comment said "(off by
 default)" directly above `enabled: true`; the comment was stale, the value shipped.
 Verification means a test or release-config assertion — never a comment, never memory.
 The global kill switch is hard-wired to the platform's dev flag (e.g. `__DEV__`).
 
-**7.2 Know your platform's log-channel side effects.** The same mobile logger routes
+### 7.2 Know your platform's log-channel side effects
+
+The same mobile logger routes
 *all* levels through `console.log` deliberately: on that platform, the warn/error sinks
 pop an in-app dev overlay, burying the screen for routine handled events. Severity rides
 in the level token, not the sink. Learn what each channel triggers on your platform —
 dev overlays, crash-reporter capture, OS log redaction — and mark a deliberate
 non-obvious sink choice with a "looks wrong but isn't" comment (comment standard).
 
-**7.3 Client errors that matter get REPORTED, not just logged locally.** A client log
+### 7.3 Client errors that matter get REPORTED, not just logged locally
+
+A client log
 dies with the device. Failures on money and delivery paths — a paid result that never
 renders, a voided download — MUST reach a server-visible channel: a crash/error
 reporter, an API-side event, or at minimum a request the server logs under the
@@ -222,13 +281,16 @@ correlation id. Otherwise you learn of a fleet-wide client bug from app-store re
 
 ## 8. Worker and process signals
 
-**8.1 Exit codes and crash signals are logged with context — never load-bearing for
-correctness.** Durable truth lives in the store, not the process report (`resilience.md`'s
+### 8.1 Exit codes and crash signals are logged with context — never load-bearing for correctness
+
+Durable truth lives in the store, not the process report (`resilience.md`'s
 durable-truth rule); the audited pipeline's exit codes were logging-only, with finalize
 deriving truth from stored artifacts. Log the exit code, signal, run id, and correlation
 id anyway — they are how a post-mortem reconstructs *why* the truth looks as it does.
 
-**8.2 Watchdog firings and sweeper interventions are always logged AND counted.** A
+### 8.2 Watchdog firings and sweeper interventions are always logged AND counted
+
+A
 backstop firing means *something already went wrong once*: a rising intervention rate is
 the earliest warning of a primary-path regression, and a silent backstop converts a
 detectable failure into an undetectable one. Same for stale-lease reclaims — each is a
@@ -277,6 +339,8 @@ Before committing a change that touches a failure path, a logger, or an emit sit
       event (§2.1)? A ladder rung emits with the rung as a dimension (§2.3)?
 - [ ] Money or availability path touched → metric + alarm exist and are in the project
       profile (§3.1, Appendix A)?
+- [ ] New metric or new label: every label value drawn from a closed enumerated set — no
+      id, message, or raw path in a dimension (§3.5)?
 - [ ] New log lines: through the repo's one logger, correct domain, structured fields,
       correlation id included (§4, §5)?
 - [ ] No secret, token, PII, or wholesale body in any new line — masked to
@@ -294,18 +358,18 @@ Before committing a change that touches a failure path, a logger, or an emit sit
 
 Cheap CI checks that make this standard enforceable rather than aspirational:
 
-- **Lint-ban raw console calls** outside the logger module and a whitelist of boot-fatal
+- **[observability.GR1]** **Lint-ban raw console calls** outside the logger module and a whitelist of boot-fatal
   guards (e.g. ESLint `no-console` with file overrides) (§4.1).
-- **A release-config test on the client logger**: assert the global gate is off outside
+- **[observability.GR2]** **A release-config test on the client logger**: assert the global gate is off outside
   dev and each domain's shipped `enabled` matches the documented default. Catches the
   comment-configured toggle permanently (§7.1).
-- **Pin middleware order with a test**: correlation id assigned before body parsing,
+- **[observability.GR3]** **Pin middleware order with a test**: correlation id assigned before body parsing,
   CORS, and auth in the app's middleware chain (§5.2).
-- **Make the correlation id a required parameter** of every error-emit helper so a
+- **[observability.GR4]** **Make the correlation id a required parameter** of every error-emit helper so a
   hardcoded null cannot typecheck (§5.3).
-- **Secret-pattern scan over log call sites** (field names like token, password,
+- **[observability.GR5]** **Secret-pattern scan over log call sites** (field names like token, password,
   authorization, cookie; long-string heuristics) (§6.1).
-- **Reconcile code against the profile**: every metric name emitted in code appears in
+- **[observability.GR6]** **Reconcile code against the profile**: every metric name emitted in code appears in
   the Appendix A table with an alarm binding, and vice versa — an unlisted metric is
   unalarmed by definition (§3.3, §9).
 
@@ -327,8 +391,8 @@ Cheap CI checks that make this standard enforceable rather than aspirational:
 
 **Metrics and alarm bindings (§3):**
 
-| Metric (namespace/name) | Emitted from | Class (money / availability / security / degraded) | Alarm (threshold, window) | Runbook |
-| --- | --- | --- | --- | --- |
+| Metric (namespace/name) | Emitted from | Labels (closed set — `observability.md` §3.5) | Class (money / availability / security / degraded) | Alarm (threshold, window) | Runbook |
+| --- | --- | --- | --- | --- | --- |
 
 **Correlation id flow (§5):**
 

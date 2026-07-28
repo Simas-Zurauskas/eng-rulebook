@@ -1,0 +1,70 @@
+# Reusable CI fragment for the eng-rulebook guard rails.
+#
+# Copy into .github/workflows/ and adjust the install step to the repo's package manager.
+# It is a STARTING POINT, not a drop-in: every repo owns its own runtime version and install
+# command (tooling-and-workspace.md), so pinning those here would be the cross-repo drift this
+# library exists to prevent.
+#
+# What it runs, and which standard requires it:
+#   typecheck   type-safety.md § Guard rails — standalone tsc, independent of the framework build
+#   lint        type-safety.md § Guard rails — typescript-eslint recommendedTypeChecked or above
+#   semgrep     the checks/semgrep rules; each message names the rule it enforces
+#   deps        security.md §10 — severity-gated: critical/high block, lower severities get
+#               scheduled triage rather than silence
+#   secrets     security.md §6 — a deterministic scanner, not a model reading the diff
+#
+# Pin every action to a full commit SHA before using this in anger
+# (supply-chain-and-build-integrity.md). The `@vN` refs below are placeholders and are the exact
+# thing that standard forbids — they are left visible rather than filled in with SHAs that would
+# be stale by the time you read this.
+
+name: eng-rulebook
+
+on:
+  pull_request:
+  push:
+    branches: [main, master]
+
+# supply-chain-and-build-integrity.md: least-privilege token at the top level.
+permissions:
+  contents: read
+
+jobs:
+  standards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@vN   # PIN TO A SHA
+
+      - uses: actions/setup-node@vN # PIN TO A SHA
+        with:
+          node-version-file: .nvmrc   # or `node-version:` matching engines.node
+
+      # tooling-and-workspace.md: install from the lockfile, frozen. Adjust to your manager.
+      - run: npm ci
+
+      # type-safety.md: standalone, so a passing framework build cannot mask a type error.
+      - run: npx tsc --noEmit
+
+      - run: npx eslint .
+
+      # The library's own pattern rules. Continues on findings so the job reports ALL of them in
+      # one run rather than stopping at the first; the severity gate is the next step's job.
+      - name: semgrep (standards rules)
+        run: |
+          python3 -m pip install --quiet semgrep
+          semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ \
+                  --error --quiet .
+
+      # security.md §10: severity-gated. `--audit-level=high` is the threshold the standard
+      # states; findings below it must be triaged on a schedule, not discarded.
+      - name: dependency audit (critical/high block)
+        run: npm audit --audit-level=high
+
+      # security.md §6 + its Guard rails: a deterministic scanner first. An LLM read of the diff
+      # is a fallback, never the check — and whichever ran must be recorded.
+      - name: secret scan
+        run: |
+          echo "Wire a deterministic scanner here (e.g. gitleaks, or the platform's push"
+          echo "protection). Left unwired deliberately: a step that pretends to scan is worse"
+          echo "than an absent one, because it reads as covered."
+          exit 1

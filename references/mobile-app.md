@@ -1,8 +1,8 @@
 # Mobile App Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 > Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs what is unique about the mobile client: a distributed node you do not control,
@@ -24,6 +24,20 @@ features, deep-link handling on the client.
 - Delivery redundancy (push + poll reconciliation) and gate failure directions → `resilience.md` §10–§11.
 - Generated native directories, lockfiles, CI parity → `tooling-and-workspace.md` §6–§7.
 - Generated API types and codegen workflow → `api-contracts-and-codegen.md`.
+
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| React Native | **0.86** current stable; 0.77–0.86 carry live docs, **0.76 and below are archived**. A labelled example only — the app's own pin is a profile fact. An archived version's docs do not announce that they are archived |
+| Expo SDK / EAS Update | **SDK 57**, 30 June 2026; each SDK targets one React Native version. The `runtimeVersion` policies (`appVersion`, `nativeVersion`, `fingerprint`) are the native-compatibility mechanism §4 names — `fingerprint` is the one that moves when native code does |
+| Google Play target API level requirement | **Living policy, moving dates.** As of 2026-07-28: from **31 Aug 2026** new apps and updates must target Android 16 (API 36); existing apps must target Android 15 (API 35) to stay available to new users on newer OS; extension to 1 Nov 2026 on request. The dates rot — §5's profile table is what you pin |
+| Apple SDK minimum requirement | **Living, in force since 28 Apr 2026**: uploads to App Store Connect must be built with Xcode 26 or later against the iOS / iPadOS / tvOS / visionOS / watchOS **26** SDKs. Same rolling shape as the row above |
+| Apple **App Privacy Details** / Google Play **Data safety** section | **Living, unversioned per-app declarations**, required to ship, and both place the duty to keep answers current on the developer as bundled SDKs change. The answers and their owner are profile rows (§5), never values in this file |
+| Universal Links (`apple-app-site-association`) / Android App Links (Digital Asset Links `assetlinks.json`) | **Living vendor specs, unversioned.** Both are served over HTTPS from the site's `/.well-known/`; `assetlinks.json` matches on `package_name` + `sha256_cert_fingerprints`. This pair is the §5 identity set whose mismatch fails silently |
+| Firebase Cloud Messaging **HTTP v1** | **Living doc, unversioned.** The dead-token signals §3 requires: `UNREGISTERED` (HTTP 404) and `INVALID_ARGUMENT` (HTTP 400 — a dead-token signal only once the payload is known valid). FCM counts a registration stale after ~1 month unconnected; Android registrations are collected at 270 days |
+| APNs provider API (HTTP/2) | Named **without codes**: the exact status and reason strings for a dead token could not be retrieved from Apple's primary documentation on 2026-07-28. Treat any remembered value as unverified; pin the current reason codes in the profile against Apple's live page |
 
 ## 1. Core principle
 
@@ -194,17 +208,17 @@ Before merging app-side changes:
 
 CI checks that make this standard enforceable, not aspirational:
 
-- **Fresh-native-build job** on a schedule: clean checkout → prebuild → native compile for
+- **[mobile-app.GR1]** **Fresh-native-build job** on a schedule: clean checkout → prebuild → native compile for
   both platforms; failure pages the app owner. Catches §5's whole class.
-- **Push-payload pin test on both sides** (`testing.md` §5.6 pattern) — server composer and
+- **[mobile-app.GR2]** **Push-payload pin test on both sides** (`testing.md` §5.6 pattern) — server composer and
   client handler assert the same literal shape.
-- **Zombie-session test:** integration test drives a warmed session cache, returns 401 from
+- **[mobile-app.GR3]** **Zombie-session test:** integration test drives a warmed session cache, returns 401 from
   the mock server, asserts the app lands on sign-in.
-- **Version-gate test:** gate logic unit-tested against (binary, OTA, minimum) triples —
+- **[mobile-app.GR4]** **Version-gate test:** gate logic unit-tested against (binary, OTA, minimum) triples —
   including the unreadable-version branch and its documented fail direction.
-- **Dead-token prune metric** — pruned-token count emitted and alarmed on flatline
+- **[mobile-app.GR5]** **Dead-token prune metric** — pruned-token count emitted and alarmed on flatline
   (`observability.md` §3): a prune that silently stops regrows the graveyard.
-- **Store-deadline tracker** in the profile reviewed each release cycle (SDK minimums,
+- **[mobile-app.GR6]** **Store-deadline tracker** in the profile reviewed each release cycle (SDK minimums,
   privacy-form changes).
 
 ## Appendix A — Project profile (TEMPLATE)

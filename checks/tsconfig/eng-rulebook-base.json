@@ -1,0 +1,52 @@
+// Compiler-strictness baseline for references/type-safety.md.
+//
+// EXTEND it, never copy it — a copied baseline drifts per repo, which is the failure
+// tooling-and-workspace.md exists to prevent:
+//   { "extends": "./.claude/skills/eng-rulebook/checks/tsconfig/eng-rulebook-base.json" }
+//
+// It deliberately sets NO target/module/lib/paths/outDir: those are the repo's choice and differ
+// legitimately between an API, a worker and a bundled client. This file owns strictness only.
+// Each flag names the failure it prevents; removing one is a decision worth recording in the
+// project profile.
+//
+// NOTE: this file is JSONC. tsc accepts comments here but rejects unknown keys inside
+// `compilerOptions`, so rationale lives in comments and never as `$comment` keys.
+{
+  "compilerOptions": {
+    "strict": true,
+
+    // arr[i] and rec[k] are T | undefined, because they are. Without this the single most common
+    // runtime TypeError typechecks cleanly.
+    "noUncheckedIndexedAccess": true,
+
+    // Distinguishes "absent" from "present and undefined" — the difference between a PATCH that
+    // skips a field and one that clears it.
+    "exactOptionalPropertyTypes": true,
+
+    // A renamed base method silently orphans its override without this.
+    "noImplicitOverride": true,
+
+    "noFallthroughCasesInSwitch": true,
+
+    // A branch that forgets to return yields undefined at runtime and passes the compiler.
+    "noImplicitReturns": true,
+
+    // A caught value is unknown, not any — forcing the narrowing error handling needs anyway.
+    "useUnknownInCatchVariables": true,
+
+    // A case-only import mismatch builds on macOS and fails on Linux CI.
+    "forceConsistentCasingInFileNames": true,
+
+    // Deliberate: checks YOUR types, not your dependencies' shipped .d.ts, which you cannot fix.
+    // Turning it off buys noise, not safety.
+    "skipLibCheck": true,
+
+    // Keeps source compatible with single-file transpilers (bundlers, ts-node, test runners) so
+    // the type-check and the build cannot disagree.
+    "isolatedModules": true,
+
+    // type-safety.md requires a STANDALONE typecheck step. A repo that emits from tsc overrides
+    // this in its build config; the check itself stays independent of the bundler.
+    "noEmit": true
+  }
+}

@@ -1,8 +1,8 @@
 # Data Integrity Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 > Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs the correctness of **stored state** under concurrency and failure: atomic claims,
@@ -28,6 +28,18 @@ examples use document-store operators (e.g. MongoDB `findOneAndUpdate`) and SQL 
 - Response envelopes, error codes, codegen → `api-contracts-and-codegen.md`.
 - Making the failures below *visible* (wedge alarms, silent-degradation ban) →
   `observability.md`.
+
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| IETF "The Idempotency-Key HTTP Header Field" | **draft-ietf-httpapi-idempotency-key-header-07 — EXPIRED 18 April 2026** (revision dated 15 Oct 2025); never published as an RFC. §6 treats it as design precedent; citing it as "the IETF spec" is a factual error, and a bare document name retrieves an expired draft |
+| Stripe idempotency keys | **Living documentation, unversioned.** Cite the *model* — random V4-UUID keys, stored first-response replay, mismatched-payload rejection, bounded key retention. Any retention window or key-format number is pinned in the profile, not here |
+| Martin Kleppmann, "How to do distributed locking" | Blog post, **8 February 2016**, unrevised. It specifies a **monotonically increasing** token checked by the storage service; §5's equality-compared random token is this file's adaptation of it and says so |
+| Idempotent Consumer pattern (microservices.io, Chris Richardson) | **Living pattern catalogue, unversioned and undated.** Cite the pattern name only — no clause in it is normative here |
+| MongoDB duplicate-key error | Server code **11000**, `DuplicateKey` (rendered `E11000 …` in the message text) — read from the server's own error-code registry |
+| PostgreSQL duplicate-key error | SQLSTATE **23505** `unique_violation`, class 23 Integrity Constraint Violation — stable across releases; checked against the current (18.x) error-code appendix |
 
 ## 1. Core principle — you live in an at-least-once world
 
@@ -120,9 +132,9 @@ clobbering the new claimant.
 ## 6. Idempotency: a unique index is the arbiter, not application code
 
 For any client-triggered operation that creates cost or state (a paid generation, a payment,
-a send), accept a **client-supplied idempotency key** (IETF HTTPAPI draft "The
-Idempotency-Key HTTP Header Field"; Stripe's idempotency-key model) enforced by a **UNIQUE
-(partial) index** on `(owner, key)`:
+a send), accept a **client-supplied idempotency key** (the expired IETF HTTPAPI Internet-Draft "The
+Idempotency-Key HTTP Header Field"; Stripe's idempotency-key model — both §0) enforced by a
+**UNIQUE (partial) index** on `(owner, key)`:
 
 - **The DB constraint decides concurrent duplicates.** An application-level "does this key
   exist?" read is only a fast path — two concurrent submits both pass it. The race's loser
@@ -132,8 +144,9 @@ Idempotency-Key HTTP Header Field"; Stripe's idempotency-key model) enforced by 
   constrained; scope the key per owner so clients' keys can't collide.
 - **No key = no dedup. State it honestly.** A retry without a key creates and bills again;
   docs and client code must say so rather than imply safety that doesn't exist.
-- Per the IETF draft, a key MUST NOT be reused with a different payload; random UUIDs
-  RECOMMENDED. Payload-mismatch rejection is optional hardening; the unique index is not.
+- That Internet-Draft says a key MUST NOT be reused with a different payload and RECOMMENDS
+  a UUID — but it expired without becoming an RFC, so it is precedent, not obligation.
+  Payload-mismatch rejection is optional hardening; the unique index is not.
 
 ## 7. Terminal-state machines: enumerate, guard, one-way doors
 
@@ -184,25 +197,23 @@ max) or a conditional `UPDATE`/`INSERT … SELECT` that fails closed. The audite
 enforces its per-user collection cap exactly this way; a race cannot overshoot because the
 losing write matches nothing and maps to the domain's "limit reached" response.
 
-## 10. Query shapes match indexes; payloads live in object storage
+## 10. Reaching stored state — moved to `performance-and-data-access.md`
 
-- **Every claim and sweep query MUST have a covering index — including its sort.** An
-  unindexed sort in a claim runs in memory over every claimable document, and claim-style
-  operations typically *cannot spill to disk*. In the audited workspace the claim sorted by
-  creation time with no supporting index over documents embedding base64 media (~10 MB
-  worst-case): draining a backlog was O(N²) full-document fetches, and past the store's
-  ~100 MB in-memory sort budget **every claim aborted and the pipeline stopped claiming,
-  permanently** — at exactly the seasonal peak that created the backlog.
-- Write the index *next to the query shape it backs*, naming the query. An index nobody can
-  trace to a query gets deleted; a query nobody indexed is a wedge. Declared indexes MUST
-  have a consuming query — unused ones tax every write for nothing.
-- **Large payloads do not live in queue/DB records.** Blobs go to object storage; records
-  hold **keys**. Payload-laden records amplify every scan, sort, poll, and TTL sweep — the
-  audited admin UI polled a multi-MB document every 1.5 s only to discard the payload field.
-- **No per-item queries in a loop over a list you just fetched (N+1).** Batch with an `$in`/
-  join or embed what the list view needs; an endpoint whose query count scales with its
-  result count is a scaling defect on the same axis as an unpaginated list
-  (`api-contracts-and-codegen.md` owns the pagination contract).
+Index and payload rules moved to their own lane; this section is kept so citations against it
+still resolve. The obligations, with their new homes:
+
+- Every claim and sweep query has a backing index **including its sort** →
+  `performance-and-data-access.md` §2.2.
+- Write the index next to the query shape it backs; a declared index with no consuming query
+  taxes every write → `performance-and-data-access.md` §2.1.
+- Records hold keys, not blobs → `performance-and-data-access.md` §5.1.
+- No per-item query in a loop over a list you just fetched → `performance-and-data-access.md` §3.1.
+
+**What stays this file's lane:** the *consequence* for the claim protocol. A claim query that
+cannot execute is a **liveness failure of the claim**, not merely a slow one — the worker holds
+no lease, no work is claimed, and the pipeline stops with every record still in a valid state, so
+nothing in §3–§5 detects it. Size and index the claim query as part of the claim's design (§3),
+and alarm on claim throughput reaching zero (`observability.md`), not only on error rate.
 
 ## 11. Cleanup: declared TTLs, a durable/transient split, loud cascades
 
@@ -245,6 +256,55 @@ losing write matches nothing and maps to the domain's "limit reached" response.
   out-of-scope fields do so explicitly — ODM saves typically cannot unset unknown fields.
   The legacy source is **read-only**: the migration only ever reads from it.
 
+## 13. Two records that must change together carry a recovery obligation
+
+Where one transaction cannot span them — separate stores, a document store without
+multi-document transactions, a DB row plus an object-storage write — the pair MUST pass through
+an **intermediate state some sweeper can finish or roll back from durable state alone**, never
+through a state that is merely wrong. Order the writes so the crash window leaves the
+*recoverable* side: write the intent first (a pending marker naming what the second write owes),
+perform the second write, then clear the marker in the conditional write that finalises (§2).
+
+- **"Use a transaction" is not the rule; being resumable without one is.** A transaction removes
+  the window where you have one; the marker + sweeper is what you owe everywhere else, and it is
+  also what you owe *with* a transaction whose second participant is a remote system.
+- Prevents the **half-terminal record**: the job flips terminal, the deploy lands, the
+  user-facing record is never synced — and nothing on disk distinguishes "still running" from
+  "finished an hour ago", so no sweeper can safely act and the record is stuck forever (§7, §11).
+- The marker MUST be readable by a process with **no memory of the crashed run** (§8) and the
+  sweeper's re-claim MUST itself be atomic, so N sweepers finishing one pair resolve to one.
+
+## 14. Schema changes ship as expand → migrate → contract, each phase revertible on its own
+
+A shape change deployed in one step is **irreversible the moment new code writes the new shape**:
+the rollback you reach for restores readers that cannot parse records already written. Split it
+into three deploys, each independently revertible:
+
+1. **Expand** — add the new field/column, nullable or defaulted, and deploy readers that tolerate
+   both shapes. Nothing writes the new shape yet, so a revert leaves no residue.
+2. **Migrate** — backfill idempotently and resumably (§12) while both shapes are legal; writers
+   may begin writing both. A revert here stops the backfill; it does not strand readers.
+3. **Contract** — flip reads to the new shape, then remove the old one **only once no deployed
+   reader still reads it**, evidenced by a deployed-version check or a read-of-old-shape counter
+   observed at zero (`observability.md`), never by assumption. Contract is the one-way door.
+
+An in-place rename or type change performs all three at once and has no revert — treat it as a
+migration (§12) with a runbook, not as a schema edit.
+
+## 15. Read-modify-write carries a version guard, or it silently loses the concurrent update
+
+Any update whose new value is computed from a value it read MUST carry that read's version in the
+write's filter — an incrementing revision field the write itself bumps, or the store's native
+etag/`_rev` — and MUST treat a **zero-match result as a conflict to surface or re-read-and-retry**,
+never as success (§2).
+
+Without the guard the last writer wins in silence: two editors save the same record seconds apart,
+the first one's change is gone, no error is raised on either side, and nothing in the data records
+that it happened — so the loss is reported as "the app ate my edit", weeks later, unreproducibly.
+This is §2's compare-and-set applied to *field* updates rather than status transitions, with the
+version standing in for the expected state. It is required wherever two humans, or a human and a
+background job, can edit one record.
+
 ## Failure shapes
 
 Named patterns from real audits, genericised. If a review comment cites one, this is the file.
@@ -260,7 +320,7 @@ Named patterns from real audits, genericised. If a review comment cites one, thi
   codebase; a double-tap creates two public artifacts, one permanently orphaned (§2).
 - **The half-terminal record** — job flipped terminal and the user-facing record synced in
   two non-atomic writes with no reconciler; a deploy in the gap leaves the user's record
-  pending forever, undeletable, its evidence TTL-purged a week later (§7, §11).
+  pending forever, undeletable, its evidence TTL-purged a week later (§7, §11, §13).
 - **The resurrected cancellation** — terminal write not guarded on current status; an
   orphaned handler finishing late overwrites `cancelled` with `completed` (§7).
 - **The unkeyed retry** — no idempotency key on a paid create; an ambiguous timeout retried
@@ -292,27 +352,33 @@ Before merging code that writes shared state:
       transition? Cascades storage-first, partial failure thrown, breadth guard present?
 - [ ] Migration writes upsert on a uniquely-indexed legacy key, conflicts abort, and re-run
       convergence is stated (or one-way is documented)?
+- [ ] Do two records changed together in this diff pass through a marked intermediate state
+      with a sweeper that can finish or roll it back — not just a hoped-for transaction (§13)?
+- [ ] Is a schema change split into expand / migrate / contract deploys, each revertible,
+      with contract gated on evidence that no deployed reader reads the old shape (§14)?
+- [ ] Does every read-modify-write in the diff put the read version (or etag) in its write
+      filter and treat a zero-match as a conflict rather than success (§15)?
 
 ## Guard rails
 
 CI checks that make this enforceable rather than aspirational:
 
-- **Concurrent-claimer race tests against a real (in-memory) database** — N parallel claims
+- **[data-integrity.GR1]** **Concurrent-claimer race tests against a real (in-memory) database** — N parallel claims
   on one queued job yield exactly one winner; N racing finalizers exactly one finalize.
-- **A stale-fence test**: claim, reclaim with a fresh token, replay the first claimant's
+- **[data-integrity.GR2]** **A stale-fence test**: claim, reclaim with a fresh token, replay the first claimant's
   complete/fail/progress writes, assert they all no-op.
-- **A concurrent-duplicate test per idempotency key**: two parallel creates with one key
+- **[data-integrity.GR3]** **A concurrent-duplicate test per idempotency key**: two parallel creates with one key
   yield one record and one returned winner — plus a schema test asserting the unique partial
   index exists (an index dropped in a refactor fails no type check).
-- **A status-machine exit test**: enumerate the status set and assert every non-terminal
+- **[data-integrity.GR4]** **A status-machine exit test**: enumerate the status set and assert every non-terminal
   status has a mover (claimer, callback, sweeper, or reconciler) that can advance it.
-- **Explain-plan assertions** (or a startup check) that claim/sweep query shapes use their
+- **[data-integrity.GR5]** **Explain-plan assertions** (or a startup check) that claim/sweep query shapes use their
   intended indexes — catches the wedge before peak traffic does.
-- **A breadth-guard unit test**: the destructive prefix delete throws on `''` and top-level
+- **[data-integrity.GR6]** **A breadth-guard unit test**: the destructive prefix delete throws on `''` and top-level
   prefixes.
-- **A migration convergence test**: run the import twice against a fixture source; the
+- **[data-integrity.GR7]** **A migration convergence test**: run the import twice against a fixture source; the
   second run's insert counts must be zero.
-- **A driver-semantics pin**: a test proving your "clear this field" idiom actually clears it.
+- **[data-integrity.GR8]** **A driver-semantics pin**: a test proving your "clear this field" idiom actually clears it.
 
 ## Appendix A — Project profile (TEMPLATE)
 

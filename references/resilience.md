@@ -1,8 +1,8 @@
 # Resilience Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs how the system behaves when a **dependency fails**: timeouts, retry policy,
@@ -28,6 +28,20 @@ Not this standard's lane (cross-refs only):
 - *Failure signals* — metric/alarm shape, correlation, the silent-degradation ban:
   `observability.md`. This standard says **which** events must emit a signal; that one owns
   what the signal looks like.
+
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| Google SRE Book, *Site Reliability Engineering* | **1st edition**, Ch. 22 "Addressing Cascading Failures", subsection *Deadline propagation*. Unversioned free text; cite the chapter, never a page number. The *SRE Workbook* is a companion volume, not a revision of it |
+| Azure Architecture Center, "Transient Fault Handling" | **Living page, unversioned** (page metadata `ms.date` 2026-02-26). Microsoft also ships a Well-Architected page, "Recommendations for handling transient faults" — a *different* document in the same lane, so name the one you mean |
+| Azure Architecture Center, "Retry Storm antipattern" | **Living page, unversioned.** Filed under *antipatterns*, not *patterns* — a bare "retry storm" lookup lands on third-party prose instead |
+| Azure Architecture Center, "Circuit Breaker Pattern" | **Living page, unversioned** (`ms.date` 2025-02-05) |
+| AWS Well-Architected Framework, Reliability Pillar, **REL05-BP03** "Control and limit retry calls" | **Living document.** The `latest` path always serves the current revision while dated snapshots (e.g. framework 2022-03-31) stay published — a bare best-practice ID means whatever `latest` says today, so record the revision you checked |
+| AWS Architecture Blog, "Exponential Backoff And Jitter" (M. Brooker, 2015) | **Unversioned blog post.** Published title capitalises *And* |
+| Amazon Builders' Library, "Timeouts, retries, and backoff with jitter" | **Living article, unversioned.** The `aws.amazon.com/builders-library/…` path now **301-redirects** to `builder.aws.com` — the standing case for citing by title, never by URL |
+| Node.js built-in `fetch` (undici) | **Deliberately unpinned.** Undici documents `headersTimeout` and `bodyTimeout` as **300 s each** — two independent clocks, not one. These are library policy, not a specification: pin your own deadline (§2.1) rather than inherit them |
 
 ## 1. Core principle — crash-safe is not blip-safe
 
@@ -55,9 +69,10 @@ A failure interpreted ad hoc at the throw site defaults to the most destructive 
 Every call that leaves the process MUST carry an **explicit per-operation timeout** — never a
 library default. Know the default before overriding it: defaults are often absent (many DB
 and storage clients hang indefinitely) or absurdly long — e.g. Node's built-in `fetch`
-(undici) allows a hang of ~5 minutes by default, which in the audited workspace was **longer
-than the job lease**: one hung socket would outlive the lease, trigger a reclaim, and put two
-executors on the same paid job. A hung socket MUST surface as an error the caller classifies
+(undici) documents a 300 s header timeout *and* a separate 300 s body timeout, two
+independent clocks, so a stalling response hangs well past five minutes. In the audited
+workspace that was **longer than the job lease**: one hung socket outlived the lease,
+triggered a reclaim, and put two executors on the same paid job. A hung socket MUST surface as an error the caller classifies
 (§3), never silently pin a worker, a lease, or a request handler. Size timeouts to the call's
 shape — control/poll calls in seconds, streams longer — and record each in Appendix A.
 
@@ -254,6 +269,39 @@ resumable from persisted state by a surviving instance (lease mechanics:
 kill timeout; per-call timeouts (§2.1) stay shorter than the lease (or a live executor's
 lease expires under it); shutdown stops *claiming* before it stops *finishing*.
 
+## 13. Absorbing and shedding are different designs — and shedding is loud
+
+Saturation (§9) reaches the cap in one of two shapes, and each carries its own obligation:
+
+- **A durable queue absorbs.** Arrival keeps succeeding and latency takes the burst — so the
+  bound that matters is **age, not depth**: the oldest unclaimed item's age MUST be bounded and
+  **alarmed**, because a queue that absorbs forever is indistinguishable from a stopped consumer
+  until the deadline the work was feeding has already passed (metric shape: `observability.md`
+  §3.1). Depth alone hides a slow drain behind a healthy-looking number.
+- **A synchronous path sheds.** Past the cap it MUST reject **explicitly** — a rejection status
+  the caller can classify as transient (§3.1) plus a retry hint (e.g. `Retry-After`) — never by
+  hanging until someone's timeout fires, dropping quietly, or returning an empty success. And it
+  MUST emit **accepted, queued and shed counts**: silent shedding is indistinguishable from
+  success at every layer above it, so the incident is found in missing output rather than in a
+  metric, and the client's own retry policy never engages because nothing told it to.
+
+Which surface does which is a design decision, recorded in Appendix A beside its cap.
+
+## 14. Readiness and liveness answer different questions; shutdown drains before it exits
+
+- **Readiness answers "route traffic to me?"; liveness answers "am I worth restarting?"** A
+  readiness probe reporting ready before this instance's dependencies are reachable — pool not yet
+  connected, required config not yet fetched, migrations not yet applied — routes real traffic into
+  an instance that can only fail, and a rolling deploy will happily replace every working instance
+  with one. Readiness therefore checks what *this* instance needs to serve one request. Liveness
+  stays shallow and local: a liveness probe wired to a shared dependency restarts the whole fleet
+  the moment that dependency blips, converting a partial outage into a total one.
+- **Shutdown order is: stop accepting, drain, exit.** Fail readiness first so the load balancer
+  stops sending work, then let in-flight requests and already-claimed work finish inside the grace
+  window, then exit. An instance that exits on SIGTERM drops whatever it was mid-way through —
+  for queue work that is §12's reclaim obligation; for a request in flight there is no reclaim, so
+  the drain window *is* the control. Probe endpoint shape: `api-contracts-and-codegen.md` §10.
+
 ---
 
 ## Failure shapes
@@ -294,6 +342,11 @@ Before merging code that touches an external dependency or a pipeline step:
 - [ ] N possible finalizers, exactly one winner, losers no-op via atomic claim.
 - [ ] Concurrency is capped; saturation queues; idle polling is decoupled from the cap;
       client poll intervals fit the server's rate budget.
+- [ ] A saturating path in the diff either absorbs into a durable queue with an alarmed
+      oldest-item age, or sheds with an explicit status + retry hint and emits
+      accepted/queued/shed counts — never silently.
+- [ ] Readiness reflects this instance's own dependencies, liveness stays shallow, and
+      shutdown fails readiness before draining in-flight work.
 - [ ] Critical client state has two delivery channels and refetches on foreground.
 - [ ] Every gate's failure direction is stated with its why — including the exception.
 
@@ -301,20 +354,20 @@ Before merging code that touches an external dependency or a pipeline step:
 
 CI checks that make this enforceable rather than aspirational:
 
-- **Lint external calls for missing timeout/abort options** — flag any vendor-client or
+- **[resilience.GR1]** **Lint external calls for missing timeout/abort options** — flag any vendor-client or
   `fetch`-family call site without an explicit deadline signal.
-- **Unit-test the classifier with a failure matrix** — feed timeout, reset, 429, 5xx,
+- **[resilience.GR2]** **Unit-test the classifier with a failure matrix** — feed timeout, reset, 429, 5xx,
   truncated body, and 4xx through the call wrapper; assert each lands transient/terminal as
   the profile documents. This is the test that catches §1's money bug before production.
-- **Test the ladder rung-by-rung** — mock durable storage to present each combination (best,
+- **[resilience.GR3]** **Test the ladder rung-by-rung** — mock durable storage to present each combination (best,
   raw only, nothing + recoverable URL, nothing) and assert the outcome, including with the
   process-signal inputs absent (`exitCode: null`).
-- **Assert the clock ordering in code, not prose** — a boot- or test-time assertion that
+- **[resilience.GR4]** **Assert the clock ordering in code, not prose** — a boot- or test-time assertion that
   watchdog < sweeper deadline and per-call timeout < lease, so a config edit can't invert
   §6/§12 silently.
-- **Race the finalizers in tests** — fire callback + sweeper concurrently against an
+- **[resilience.GR5]** **Race the finalizers in tests** — fire callback + sweeper concurrently against an
   in-memory store; assert exactly one completion and no rung downgrade.
-- **Grep for swallowed catches on external calls** — an empty or log-less `catch` around a
+- **[resilience.GR6]** **Grep for swallowed catches on external calls** — an empty or log-less `catch` around a
   dependency call is an unclassified outcome (§3.1) until proven otherwise.
 
 ---
@@ -346,5 +399,5 @@ CI checks that make this enforceable rather than aspirational:
 
 **Backpressure limits:**
 
-| Loop / client | Concurrency cap | Saturation behaviour | Idle poll rate |
-| --- | --- | --- | --- |
+| Loop / client / surface | Concurrency cap | Saturation behaviour (absorb / shed — §13) | Oldest-item age alarm or rejection status + retry hint | Idle poll rate |
+| --- | --- | --- | --- | --- |

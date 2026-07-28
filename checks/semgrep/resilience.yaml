@@ -1,0 +1,52 @@
+# Semgrep rules for references/resilience.md
+#
+# Scope note, stated honestly: these catch the SHAPE of an untimed outbound call. They cannot
+# prove a timeout is absent — a caller may wrap the call in an external deadline, or configure a
+# default on a shared client instance. Treat a hit as "show me the timeout", not as a defect.
+# That is why the timeout rule ships at WARNING while the type-safety cast rule ships at ERROR.
+
+rules:
+  - id: eng-rulebook.resilience.fetch-without-timeout
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      eng-rulebook/resilience.md §2: every call that leaves the process carries an explicit
+      per-operation timeout. A `fetch` with no `signal` inherits the platform default, which on
+      some runtimes is *no timeout at all* — one unresponsive dependency then pins a worker, a
+      lease, or a request handler indefinitely, and the failure presents as a hang rather than an
+      error. Pass `AbortSignal.timeout(ms)` (or an equivalent controller), sized to the call's
+      real budget. If the deadline is enforced by a wrapper or a configured client, point at it in
+      a comment so the next reader does not have to re-derive that.
+    paths:
+      exclude:
+        - "*.test.ts"
+        - "*.test.tsx"
+        - "*.spec.ts"
+        - "test/"
+        - "tests/"
+        - "__tests__/"
+        - "__mocks__/"
+        - "benchmarks/"
+        - "bench/"
+        - "examples/"
+        - "example/"
+        - "scripts/"
+        - "fixtures/"
+    patterns:
+      - pattern-either:
+          - pattern: fetch($URL)
+          - pattern: fetch($URL, {...})
+      - pattern-not: "fetch($URL, {..., signal: ...})"
+
+# WITHDRAWN: eng-rulebook.resilience.unbounded-retry-loop
+#
+# Attempted and removed after testing against three real repositories (749 TS files). A pattern
+# cannot separate BOUNDED from UNBOUNDED retry, because both spellings return on success and both
+# use the same infinite-loop construct. Written loosely it fired on every stream-reader
+# `for (;;) { read(); if (done) break }` and on ky's state machine — 5 false positives, 0 true
+# positives. Written tightly enough to suppress those, it could not fire on a genuine unbounded
+# retry either. Deciding it needs to know whether an attempt counter exists AND is checked.
+#
+# resilience.md §3's bounded-retry rule is therefore JUDGEMENT-ONLY: it is verified by review and
+# by the audit, not by a pattern. Saying so is the point — a check that cannot fire, left in the
+# ruleset, reads as coverage the library does not have.

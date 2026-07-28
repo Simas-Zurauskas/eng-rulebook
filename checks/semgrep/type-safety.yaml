@@ -1,0 +1,64 @@
+# Semgrep rules for references/type-safety.md
+#
+# Each rule id is `standards.<lane>.<slug>` and each message names the rule it enforces, so a CI
+# failure is traceable to a line of the standard rather than to an unexplained lint id.
+#
+# Tested against real repositories before shipping — see checks/README.md § Validation.
+
+rules:
+  - id: eng-rulebook.type-safety.as-unknown-as
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: >-
+      eng-rulebook/type-safety.md §Guard-rails: `as unknown as` defeats the type system in two steps
+      to assert something the compiler rejected in one. It is the cast with the least evidence
+      behind it. Parse the value at the boundary (a schema) or narrow it with a type guard. If it
+      is genuinely unavoidable, move it behind a documented adapter with a comment giving the
+      reason (comment-standard §3.1 directive reasons).
+    paths:
+      exclude:
+        - "*.test.ts"
+        - "*.test.tsx"
+        - "*.spec.ts"
+        - "*.spec.tsx"
+        - "test/"
+        - "tests/"
+        - "__tests__/"
+        - "__mocks__/"
+        - "benchmarks/"
+        - "bench/"
+        - "examples/"
+        - "example/"
+        - "scripts/"
+        - "fixtures/"
+        - "*.d.ts"
+    pattern-either:
+      - pattern: $X as unknown as $T
+      - pattern: $X as any as $T
+
+  - id: eng-rulebook.type-safety.empty-object-assertion
+    languages: [typescript]
+    severity: WARNING
+    message: >-
+      eng-rulebook/type-safety.md §Guard-rails: an object-literal assertion like `{} as T` claims a
+      value satisfies T while providing none of it — the emptiest claim available, and it survives
+      every later field addition to T silently. Build the value, or use a factory that the compiler
+      checks.
+    paths:
+      exclude:
+        - "*.test.ts"
+        - "*.test.tsx"
+        - "*.spec.ts"
+        - "test/"
+        - "tests/"
+        - "__tests__/"
+        - "__mocks__/"
+        - "benchmarks/"
+        - "bench/"
+        - "examples/"
+        - "example/"
+        - "scripts/"
+        - "fixtures/"
+    # NOTE: semgrep's `{}` pattern matches ANY object literal (ellipsis semantics), which made
+    # this fire on `{ id: 1 } as T`. A regex is the honest expression of "empty literal".
+    pattern-regex: '\{\s*\}\s+as\s+(?!const\b)[A-Za-z_$]'

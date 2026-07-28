@@ -1,4 +1,4 @@
-# Authoring contract — engineering-standards library
+# Authoring contract — eng-rulebook library
 
 > How every standard in this library is written. Read this before writing or editing one.
 > The exemplar is `comment-standard.md` — match its voice.
@@ -7,20 +7,19 @@
 
 A standard is a **reusable, generic rule set** an AI agent or human loads *before building*,
 so the patterns that survived audits become defaults instead of findings. It is the
-build-time twin of this skill's audit mode (`../audit.md`, run by `/standards audit`): the
+build-time twin of this skill's audit mode (`../audit.md`, run by `/eng-rulebook audit`): the
 audit verifies these properties against the code after the fact; the standard states them up
 front. Use the audit's vocabulary — severity, lens, the `Standard:` mapping — so a finding
 maps cleanly back to the rule it violated.
 
 ## The reuse model
 
-- **The library ships inside the `standards` skill** — one master per topic in the skill's
+- **The library ships inside the `eng-rulebook` skill** — one master per topic in the skill's
   `references/`, routed by `SKILL.md`. A workspace adopts the library by copying the whole
   skill folder into its `.claude/skills/`; the skill loads the relevant master on demand.
 - **Never scatter copies of individual standards** into repos, wikis, or prompts — that
   recreates the drift problem the library exists to prevent. The skill folder is the unit
-  of reuse; when a master improves, update it in every workspace's copy of the skill (the
-  routing table notes `references/README.md` is authoritative).
+  of reuse; when a master improves, update it in every workspace's copy of the skill.
 - **Per-project variance lives in a profile**, not in the master: each standard that needs
   project facts ends with an **Appendix A — Project profile (TEMPLATE)**, explicitly blank,
   which the project copies to `profiles/<topic>-profile.md` and fills in.
@@ -29,9 +28,9 @@ maps cleanly back to the rule it violated.
 
 ```
 # <Topic> Standard
-> **Type:** Generic, reusable standard · **Version:** 1.0 (<date>)
+> **Type:** Generic, reusable standard · **Rev:** N (<date-of-the-content-this-rev-captures>)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
 > <2–3 lines: what this governs and the one-sentence core idea>
 
@@ -58,15 +57,61 @@ maps cleanly back to the rule it violated.
 4. **Positive, present tense.** No archaeology ("no longer", "used to"). State what is.
 5. **Selective beats encyclopedic.** 200–450 lines, aim ~350. A standard an agent can hold in context
    beats a textbook it can't. Cut the third example, keep the failure shape.
-6. **External anchors by name + version** ("OWASP ASVS 5.0", "TypeScript 5.x `strict`
-   family"), never bare URLs — URLs rot, names are searchable.
+6. **External anchors by name + version + status + date-verified**, never bare URLs — URLs rot,
+   names are searchable. Put them in a table under §0 (see `security.md` §0 for the format).
+   State the *status* — a draft cited as final is a factual error, and a bare document name that
+   silently retrieves a superseded revision is worse than no citation, because the old revision's
+   text can appear to confirm the wrong rule. Re-verify anything older than 12 months.
 7. **Own your lane.** Overlap with a sibling standard gets a one-line cross-reference by
    filename, never a restated rule. Two standards disagreeing is a library bug.
 8. **Severity language matches the audit prompt:** consequence-if-it-fires × plausibility.
 9. **Don't invent evidence.** No fabricated counts, incidents, or benchmarks. If you lack
    evidence for a rule, either find it or cut the rule.
+10. **Every cited anchor resolves.** A `§N.M` cited anywhere in the library MUST exist as a
+    `### N.M` heading in its target file. A rules section with no `§N.M` cited against it is
+    itself the citable unit and is cited as `§N`. *Advisory only:* a section running ≥20 body
+    lines with ≥3 obligations is a **candidate** for sub-headings — the checker reports it and
+    nothing blocks, because no threshold partitions this corpus the way an editor would.
+11. **Sub-rule numbers are append-only.** A new obligation takes the next free number and is
+    **never inserted mid-sequence**; deleting one leaves a gap, and the gap is honest.
+    Renumbering passes every structural check while silently re-pointing every finding already
+    filed against the old number — and audit reports live in the *adopting workspace*, where
+    they can never be retro-updated. Renumber only after confirming no published report cites
+    the anchors you are moving.
+12. **Every Checklist box is decidable from a diff alone.** The boxes are what build-time mode
+    runs as its post-write receipt (`SKILL.md` § After writing), so a box requiring knowledge the
+    diff does not contain cannot be answered and gets skipped — which is how a checklist becomes
+    decoration. Phrase each as a question about the change, not about the system.
+13. **Every guard rail carries a stable id** — `**[<lane>.GR<n>]**` as the first thing in the
+    bullet, where `<lane>` is the filename stem. Ids are what a workspace's ledger tracks and
+    what an audit's enforcement reconciliation cites; a rail without one cannot be recorded as
+    wired, so "adopted incrementally" stays indistinguishable from "adopted nothing".
+    **Ids are append-only, exactly like sub-rule numbers (rule 11):** a new rail takes the next
+    free number, deleting one leaves an honest gap, and renumbering silently re-points every
+    ledger row and finding already filed against the old id. Verify with
+    `node meta/guard-rails.mjs`.
+14. **Run the checks before you commit.** `meta/check-rulebook-shape.mjs` (anchors + required
+    shape) and `meta/check-tables.sh` (the four tables) must both exit 0. They are the only
+    mechanical gates the library has; a library that legislates guard rails for product code
+    and exempts itself is not credible.
+
+## Adding a rule that came from a gap
+
+A `library-gap` is a defect no rule covers. The intake bar, the backlog and the review cadence
+live in [`_gaps.md`](_gaps.md) — read the bar before authoring, because most candidate gaps die
+on it (the rule usually exists in a sibling lane the reporter did not read). A gap that passes
+the bar becomes a rule under the rules above, and the CHANGELOG entry that ships it closes the
+backlog row.
 
 ## Library index (lanes)
+
+> **Authoritative on lane ownership** — which file owns a subject when two could claim it (rule 7). Subject-keyed
+> and single-valued by construction: a subject with two owners is a library bug. It is **not** the router — that
+> is task-keyed, multi-valued, and lives in [`../SKILL.md`](../SKILL.md#routing-table).
+>
+> **Adding a standard means four tables, one commit:** this index, `../SKILL.md` § Routing table,
+> `README.md` § The standards, and `../README.md` § Topics. Run `meta/check-tables.sh` before committing — and
+> when they disagree, the filesystem arbitrates: **add the missing row, never delete a route to make them agree.**
 
 | File | Owns |
 | --- | --- |
@@ -81,3 +126,8 @@ maps cleanly back to the rule it violated.
 | `tooling-and-workspace.md` | Package manager, script vocabulary, config uniformity, lockfiles, generated dirs, CI parity |
 | `mobile-app.md` | Mobile client platform: client session lifecycle, push-token lifecycle, backgrounding/offline, binary-vs-OTA versioning, store & native build config, wired-or-hidden controls |
 | `comment-standard.md` | Code comments: what the wiki owns vs what point-of-edit comments own, reference rules, comment truth |
+| `web-client.md` | The browser platform: in-memory token handling, refresh single-flight, route guards vs server authz, output-encoding sinks, **CSRF** (applicability, token mechanics, `SameSite`; the server-side *requirement* to demand a non-ambient proof is `security.md` §2.7), third-party script authority, accessibility |
+| `ai-features.md` | Products that ship an LLM/agent surface: prompt injection as data/instruction confusion, tool authority and blast radius, output validation, non-determinism testing, model cost |
+| `data-protection.md` | Personal data as a code concern: inventory, retention by class, deletion/export implementation, third-party egress, residency, consent as stored state |
+| `supply-chain-and-build-integrity.md` | Dependency admission, CI step/image pinning, workflow token scope, build-time identity, SBOM, signed provenance and its verification, supply-chain waivers |
+| `performance-and-data-access.md` | Cost that scales with data volume: index justification and query-shape matching, N+1, result and payload bounds, caching, pool sizing, latency budgets |

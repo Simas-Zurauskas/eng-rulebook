@@ -1,8 +1,8 @@
 # Testing Standard
 
-> **Type:** Generic, reusable standard · **Version:** 1.0 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 2 (2026-07-28)
 > **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the engineering-standards library, bundled in the `standards` skill (references/).
+> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
 >
 > Governs what a test suite must *be* (hermetic — passing on a clean checkout with
@@ -27,6 +27,20 @@ stored-state invariants (`data-integrity.md`) or failure-mode behaviour
 the envelope/error-code contract itself (`api-contracts-and-codegen.md`); the comments
 accompanying pin tests (`comment-standard.md` §3.3).
 
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+re-verify anything older than 12 months (`_authoring.md` rule 6).*
+
+| Anchor | Version / status |
+| --- | --- |
+| *Software Engineering at Google* (Winters, Manshreck, Wright) | O'Reilly, **2020**, one edition, not revised. The hermetic definition §1 adopts sits in **ch. 23 Continuous Integration** — self-contained, no external dependencies, with determinism and isolation as its two named properties |
+| "Write tests. Not too many. Mostly integration." | **Guillermo Rauch**, December 2016 — a tweet. It is the slogan the Testing Trophy answers, *not* a Trophy claim; attributing it to the Trophy's author misstates both sources |
+| Testing Trophy (Kent C. Dodds) | **Living blog post, unversioned.** A weighting heuristic, never a specification — §4's distribution rule is this file's own, carried by audit evidence, not borrowed authority |
+| Testing Library guiding principle (Kent C. Dodds) | **Living document, unversioned.** Origin of "the more your tests resemble the way your software is used, the more confidence they can give you" — the principle, distinct from the Trophy |
+| MSW (Mock Service Worker) | Major **2** current — 2.15.0, 8 July 2026. v2 was an API reset onto Fetch API primitives, so a v1-era snippet is not portable to it. Pin the exact version in the profile |
+| Test runner, ephemeral DB, mock library | **Labelled examples only** (e.g. Vitest, `mongodb-memory-server`, Testcontainers) — no version here is normative; Appendix A's per-repo table is what pins them |
+| Mutation-testing evidence base (§8.1) | Just, Jalali, Inozemtseva, Ernst, Holmes & Fraser, *"Are mutants a valid substitute for real faults in software testing?"*, **FSE 2014** — mutant detection correlates with real-fault detection *independently of coverage*; read with Inozemtseva & Holmes, *"Coverage is not strongly correlated with test suite effectiveness"*, **ICSE 2014**. Equivalent-mutant detection is **undecidable** (Budd & Angluin, 1982) — which is why §8.1 requires a human note, not a tool verdict |
+| Oracle problem (§4.5) | Barr, Harman, McMinn, Shahbaz & Yoo, *"The Oracle Problem in Software Testing: A Survey"*, **IEEE TSE 41(5), May 2015** — the framing §4.5 borrows. The reviewed-golden practice is stated by snapshot-tool documentation too (e.g. Jest's, a **living document, unversioned**): commit snapshots, review them, resist regenerating on red |
+
 ---
 
 ## 1. Core principle — the suite is the executable spec
@@ -35,16 +49,14 @@ A test suite has exactly two jobs: **run anywhere with zero setup**, and **fail 
 behaviour someone depends on changes**. Everything below derives from those two.
 
 - A reviewer reads tests as the spec. A test name like *"never double-claims: one job,
-  many concurrent claimers → exactly one winner"* documents an invariant more reliably
-  than any prose, because it is re-verified on every run. Exact-value pinning tests
-  (§5.6) double as the written form of a cross-repo contract.
+  many claimers → exactly one winner"* documents an invariant more reliably than prose,
+  because it is re-verified on every run; exact-value pins (§5.6) are its contract form.
 - "Fail when behaviour changes" means pinning **behaviour at a boundary**, not
-  implementation inside one — Kent C. Dodds' Testing Trophy heuristic: *"the more your
-  tests resemble the way your software is used, the more confidence they can give you."*
-- "Run anywhere" means hermeticity (§2). *Software Engineering at Google* (2020)
-  defines a hermetic environment as entirely self-contained — deterministic and
-  isolated, runnable on one machine with no network. This standard adopts that
-  definition.
+  implementation inside one — Kent C. Dodds' Testing Library guiding principle: *"the more
+  your tests resemble the way your software is used, the more confidence they can give you."*
+- "Run anywhere" means hermeticity (§2). *Software Engineering at Google* (2020) defines
+  a hermetic environment as entirely self-contained — deterministic and isolated,
+  runnable on one machine with no network. This standard adopts that definition.
 
 **Green must mean something.** A suite that is green while a critical surface has zero
 coverage (§8), or while a mocked-out subsystem silently no-ops (§4.4), is worse than no
@@ -61,38 +73,42 @@ agent), and a skipped suite rots — it stops catching regressions within weeks.
 
 How, concretely:
 
-1. **Database: in-memory / ephemeral, per test file.** Spin up a real ephemeral engine
-   (e.g. `mongodb-memory-server`, or SQLite/testcontainers equivalents) rather than
-   mocking the driver — atomic updates, indexes, and uniqueness races only behave like
-   production on a real engine (§5.3). Wipe all state between tests.
-2. **Network: mocked at the process boundary, nowhere else.** Intercept outbound HTTP
-   at the network layer (e.g. MSW 2.x — whose stated philosophy is exactly this: mock
-   the network boundary, not the request client or your own modules) so app code under
-   test runs unmodified. No test may reach a real external service (§4.3).
-3. **Environment: seeded by test setup, before any app import.** If the app has a boot
-   guard that refuses to start on missing env vars (see `config-and-environment.md`),
-   the test setup file MUST seed a dummy value for **every** boot-required var:
+### 2.1 Database: in-memory / ephemeral, per test file
 
-   ```ts
-   // Runs before any test module imports app code. The boot guard hard-exits on a
-   // missing required var; seed dummies so importing app code never trips it.
-   // Not real credentials — no external service is reached in the suite.
-   const DEFAULTS: Record<string, string> = {
-     JWT_SECRET: 'test-secret-value-at-least-32-characters-long', // satisfies length guard
-     /* … every boot-required var … */
-   };
-   for (const [k, v] of Object.entries(DEFAULTS)) if (!process.env[k]) process.env[k] = v;
-   ```
+Spin up a real ephemeral engine (e.g. `mongodb-memory-server`, or SQLite/testcontainers
+equivalents) rather than mocking the driver — atomic updates, indexes, and uniqueness
+races only behave like production on a real engine (§5.3). Wipe all state between tests.
 
-   **Add a meta-test that the seed list and the boot-guard list agree** (parse the env
-   module for required names; assert each is a key of `DEFAULTS`). Why: in one audited
-   workspace this drift happened twice in one week — a newly boot-required var killed
-   the entire suite at import with an opaque `process.exit` inside test workers, and
-   because the suite gated the deploy pipeline, it blocked production deploys.
-4. **Non-hermetic tests are quarantined, declared, or deleted.** Anything that truly
-   needs a live service (a vendor-API smoke test, a container build check) MUST live
-   behind a separate script — never inside `test` — and be listed in the project
-   profile (Appendix A) with its reason. An undeclared exception is a defect.
+### 2.2 Network: mocked at the process boundary, nowhere else
+
+Intercept outbound HTTP at the network layer (e.g. MSW 2.x — whose stated philosophy is
+exactly this: mock the network boundary, not the request client or your own modules) so
+app code under test runs unmodified. No test may reach a real external service (§4.3).
+
+### 2.3 Environment: seeded by test setup, before any app import
+
+If the app has a boot
+guard that refuses to start on missing env vars (see `config-and-environment.md`),
+the test setup file MUST seed a dummy value for **every** boot-required var:
+
+```ts
+// Runs before any test module imports app code. The boot guard hard-exits on a missing
+// required var; seed dummies so importing app code never trips it — not real credentials.
+const DEFAULTS = { JWT_SECRET: 'test-secret-at-least-32-chars-long' /* …every one… */ };
+for (const [k, v] of Object.entries(DEFAULTS)) if (!process.env[k]) process.env[k] = v;
+```
+
+**Add a meta-test that the seed list and the boot-guard list agree** (parse the env
+module for required names; assert each is a key of `DEFAULTS`). Why: in one audited
+workspace this drift happened twice in one week — a newly boot-required var killed
+the entire suite at import with an opaque `process.exit` inside test workers, and
+because the suite gated the deploy pipeline, it blocked production deploys.
+
+### 2.4 Non-hermetic tests are quarantined, declared, or deleted
+
+Anything that truly needs a live service (a vendor-API smoke test, a container build
+check) MUST live behind a separate script — never inside `test` — and be listed in the
+project profile (Appendix A) with its reason. An undeclared exception is a defect.
 
 > **Litmus:** unplug the network, `git clone`, install, `test`. Anything red is a
 > violation of this section — of the standard's single most important rule.
@@ -116,28 +132,45 @@ requires that the script exist, be hermetic (§2), and gate merges (Guard rails)
 
 ## 4. Distribution — integration-first, unit for pure logic
 
-Weight the suite like the Testing Trophy (*"Write tests. Not too many. Mostly
-integration."*), not the classic pyramid: the bulk of confidence comes from tests that
-exercise a whole module boundary the way callers use it.
+Weight the suite like Kent C. Dodds' Testing Trophy — his answer to Guillermo Rauch's
+*"Write tests. Not too many. Mostly integration."* — not the classic pyramid: the bulk of
+confidence comes from tests that exercise a whole module boundary the way callers use it.
 
-1. **One integration test per behaviour at a module boundary.** Route → controller →
-   real (in-memory) database is *one* test, asserting the observable result: response
-   shape, persisted state, emitted side effects. Do not split it into three
-   mock-separated unit tests — each would pass while the seam between them breaks.
-2. **Unit tests are for pure logic**: budget math, parsers, key/path builders,
-   command/filter builders, validators. Fast, no infrastructure, exhaustive over edge
-   cases — use them there, not as the default template for everything.
-3. **Mock only at process boundaries** — outbound network, paid vendor APIs, object
-   storage, container-launch, email/push, the clock. **NEVER between your own
-   modules.** A test that mocks a sibling module pins the implementation (the call
-   graph) instead of the behaviour, so it survives real regressions and fails on
-   harmless refactors — the exact inversion of a test's job.
-4. **If you must replace a module, spread the original and override one export.** A
-   bare factory mock silently `undefined`s every export it doesn't name — including
-   ones added later. In one audited workspace exactly that hollowed a dispatcher test:
-   a later-added queue function came back `undefined`, its error was swallowed by the
-   loop's own catch, and the durable backstop for lost callbacks ran as a no-op in
-   every test while the suite stayed green.
+### 4.1 One integration test per behaviour at a module boundary
+
+Route → controller → real (in-memory) database is *one* test, asserting the observable
+result: response shape, persisted state, emitted side effects. Do not split it into three
+mock-separated unit tests — each would pass while the seam between them breaks.
+
+### 4.2 Unit tests are for pure logic
+
+Budget math, parsers, key/path builders, command/filter builders, validators. Fast, no
+infrastructure, exhaustive over edge cases — not the default template for everything.
+
+### 4.3 Mock only at process boundaries
+
+Outbound network, paid vendor APIs, object storage, container-launch, email/push, the
+clock. **NEVER between your own modules.** A test that mocks a sibling module pins the
+implementation (the call graph) instead of the behaviour, so it survives real regressions
+and fails on harmless refactors — the exact inversion of a test's job.
+
+### 4.4 If you must replace a module, spread the original and override one export
+
+A bare factory mock silently `undefined`s every export it doesn't name — including ones
+added later. In one audited workspace exactly that hollowed a dispatcher test: a
+later-added queue function came back `undefined`, its error was swallowed by the loop's
+own catch, and the durable backstop for lost callbacks ran as a no-op in every test while
+the suite stayed green.
+
+### 4.5 Oracle provenance — the expected value comes from outside the code
+
+An expected value produced by the code under test asserts only self-consistency: the
+test passes because the code agrees with itself, whatever it does. The failure shape is
+the **regenerated golden** — a snapshot or fixture refreshed from current behaviour
+after a change, which then passes forever while encoding the bug it should have caught.
+Expected values MUST come from the spec, the requirement, or hand derivation. Commit
+goldens, diff them in review, and treat regenerating one as a deliberate, separately
+reviewed act — never a bulk `--update` reflex on red. §5.6 is the strong form of this.
 
 ---
 
@@ -148,51 +181,62 @@ shippable) or a strength (the pattern that sets the bar) at exactly that spot. I
 project has the feature, the suite MUST cover it — these are the highest
 consequence-if-it-fires surfaces in the workspace shape this library assumes.
 
-1. **Money paths.** Any code that triggers a paid external call MUST have tests for:
-   deduplication on retry/reclaim (a crash between "submit" and "record" must not
-   double-bill), spend/attempts caps (a poison input reaches a terminal state, never
-   re-claimed and re-billed forever), and cost-bearing cleanup ordering. Why: an
-   audited pipeline incremented an `attempts` counter that nothing read — a poison job
-   would have re-issued a paid vendor call every lease cycle, forever. No test noticed.
-2. **Auth and authz — including the revocation blast radius.** Token validation,
-   role/admin gating, refresh rotation (reuse of a rotated token rejected), and above
-   all *eviction*: a password reset/change must be proven to invalidate every live
-   credential it claims to. Why: an audited API's suite was green on every deploy
-   while its entire auth surface had zero tests — and a password reset that failed to
-   revoke admin refresh sessions (the exact action taken after a suspected compromise)
-   shipped, found by audit rather than CI.
-3. **Concurrency invariants.** Atomic claim, lease reclaim, fencing/ownership guards —
-   tested as **deterministic race tests against a real engine**: fire N concurrent
-   claimers at one resource with `Promise.all` and assert exactly one winner; M > N
-   claimers over N resources → N distinct claims, no duplicates; a fresh lease is not
-   reclaimed, a stale one is. The bar: an audited queue suite did precisely this and
-   was independently named the system's strongest asset — while its one concurrency
-   seam *without* such a test (no fencing on post-claim writes) was a high-severity
-   double-spend finding. `data-integrity.md` defines the invariants; this file
-   requires the race tests.
-4. **Idempotency.** Duplicate submit returns the original winner; a second
-   finalize/complete call is a no-op with a distinguishable return; K concurrent
-   finalizers resolve to exactly one effect. Same technique as §5.3.
-5. **Error envelope and error codes.** Every error path emits the standard envelope
-   and a stable code (`api-contracts-and-codegen.md` owns the contract; this file
-   requires tests that failure responses actually conform — clients branch on this).
-6. **Hand-mirrored cross-repo contracts — pin BOTH sides.** When repos share no build,
-   values that must agree across them (storage key layouts, payload shapes, caps) are
-   hand-copied, and drift fails *silently in production*. Keep the mirrored module
-   byte-identical on each side; give **each repo** an exact-value test on the literals:
+### 5.1 Money paths
 
-   ```ts
-   // Pins the exact cross-repo storage keys. <other-repo>/src/keys.ts MUST produce
-   // byte-identical strings (its own twin test pins the same literals) — a change on
-   // either side breaks a build, not production.
-   it('rawKey', () => expect(rawKey('abc123')).toBe('outputs/abc123/raw.mp4'));
-   ```
+Any code that triggers a paid external call MUST have tests for:
+deduplication on retry/reclaim (a crash between "submit" and "record" must not
+double-bill), spend/attempts caps (a poison input reaches a terminal state, never
+re-claimed and re-billed forever), and cost-bearing cleanup ordering. Why: an
+audited pipeline incremented an `attempts` counter that nothing read — a poison job
+would have re-issued a paid vendor call every lease cycle, forever. No test noticed.
 
-   Both tests fail loudly on divergence, forcing a deliberate coordinated change. The
-   audited workspace had exactly one mirror pinned this way — and its *unpinned*
-   mirrors (validation caps, a taxonomy, a push-payload shape) were the audit's only
-   "dangerous duplication" finding. Pair each pin with a comment naming the silent
-   failure (`comment-standard.md` §3.3), and list every mirror in Appendix A.
+### 5.2 Auth and authz — including the revocation blast radius
+
+Token validation, role/admin gating, refresh rotation (reuse of a rotated token
+rejected), and above all *eviction*: a password reset/change must be proven to invalidate
+every live credential it claims to. Why: an audited API's suite was green on every deploy
+while its entire auth surface had zero tests — and a password reset that failed to revoke
+admin refresh sessions (the exact action taken after a suspected compromise) shipped,
+found by audit rather than CI.
+
+### 5.3 Concurrency invariants
+
+Atomic claim, lease reclaim, fencing/ownership guards — tested as **deterministic race
+tests against a real engine**: fire N concurrent claimers at one resource with
+`Promise.all` and assert exactly one winner; M > N claimers over N resources → N distinct
+claims, no duplicates; a fresh lease is not reclaimed, a stale one is. The bar: an audited
+queue suite did precisely this and was independently named the system's strongest asset —
+while its one concurrency seam *without* such a test (no fencing on post-claim writes) was
+a high-severity double-spend finding. `data-integrity.md` defines the invariants; this
+file requires the race tests.
+
+### 5.4 Idempotency
+
+Duplicate submit returns the original winner; a second finalize/complete call is a no-op
+with a distinguishable return; K concurrent finalizers → one effect (§5.3's technique).
+
+### 5.5 Error envelope and error codes
+
+Every error path emits the standard envelope and a stable code. `api-contracts-and-codegen.md`
+owns the contract; this file requires tests that failure responses conform — clients branch on it.
+
+### 5.6 Hand-mirrored cross-repo contracts — pin BOTH sides
+
+When repos share no build, values that must agree across them (storage key layouts,
+payload shapes, caps) are hand-copied, and drift fails *silently in production*. Keep the
+mirrored module byte-identical on each side; give **each repo** an exact-value test:
+
+```ts
+// Pins the exact cross-repo storage keys. <other-repo>/src/keys.ts MUST produce
+// byte-identical strings (its twin test pins the same literals) — divergence breaks a build.
+it('rawKey', () => expect(rawKey('abc123')).toBe('outputs/abc123/raw.mp4'));
+```
+
+Both tests fail loudly on divergence, forcing a deliberate coordinated change. The
+audited workspace had exactly one mirror pinned this way — and its *unpinned*
+mirrors (validation caps, a taxonomy, a push-payload shape) were the audit's only
+"dangerous duplication" finding. Pair each pin with a comment naming the silent
+failure (`comment-standard.md` §3.3), and list every mirror in Appendix A.
 
 ---
 
@@ -223,22 +267,39 @@ Flaky tests train people to re-run CI until green — at which point the suite v
 nothing. Determinism is a hermeticity property (Google's definition in §1 makes them
 inseparable) and it is engineered, not hoped for:
 
-1. **Fake timers over sleeps, always.** A `sleep(500)` race test is a coin-flip that
-   scales into CI minutes; advance an injected/faked clock instead. Test races with
-   deterministic concurrency (`Promise.all` fan-out, §5.3), never with timing.
-2. **Inject the clock and seed the randomness.** Code that reads `Date.now()` or
-   `Math.random()` inline is untestable at the failure boundary; take them as
-   injectable dependencies (or faked globals) so a test can pin them.
-3. **No test-order dependence, no shared mutable state.** Per-file isolation (fresh
-   module registry, fresh ephemeral database per file), full state wipe between tests,
-   `clearMocks` on, module-level singletons reset or re-imported. Any test that passes
-   alone and fails in the suite (or vice versa) is a defect.
-4. **Await readiness explicitly where a race matters.** If a test depends on an index
-   or schema being built (unique-constraint races), await the build — the audited
-   suites that did this were the ones whose race tests never flaked.
+### 7.1 Fake timers over sleeps, always
+
+A `sleep(500)` race test is a coin-flip that scales into CI minutes; advance an
+injected/faked clock instead. Race with deterministic fan-out (§5.3), never with timing.
+
+### 7.2 Inject the clock and seed the randomness
+
+Code that reads `Date.now()` or `Math.random()` inline is untestable at the failure
+boundary; take them as injectable dependencies (or faked globals) so a test can pin them.
+
+### 7.3 No test-order dependence, no shared mutable state
+
+Per-file isolation (fresh module registry, fresh ephemeral database per file), full state
+wipe between tests, `clearMocks` on, module-level singletons reset or re-imported. Any
+test that passes alone and fails in the suite (or vice versa) is a defect.
+
+### 7.4 Await readiness explicitly where a race matters
+
+If a test depends on an index or schema being built (unique-constraint races), await the
+build — the audited suites that did this were the ones whose race tests never flaked.
+
+### 7.5 No blanket retry — repeat to identify, quarantine to contain
+
+**NEVER configure a blanket CI auto-retry.** A retry converts a real race into a green
+build and destroys the only evidence the race exists: the failure you needed is now
+indistinguishable from noise. Triage a suspected flake by **repeat-running that test**
+(e.g. a runner's repeat/rerun-N flag) until it is classified, then fix it or
+**quarantine it out of the gating run with a named owner and a return date**, recorded
+in the profile. A quarantined test nobody returns to is a deleted test with extra
+steps — the date is the only thing that makes that visible. Repeating a *non-deterministic
+component* is measurement, not triage, and scores all-of-k, never any-of-k (`ai-features.md` §5.3).
 
 ---
-
 ## 8. Coverage philosophy — thresholds where the blast radius is
 
 **Set enforced coverage thresholds on critical directories — queue, auth, billing,
@@ -249,6 +310,28 @@ tests (§5.2) — a global threshold would have been satisfied by the well-teste
 subsidising the untested auth boundary. Per-directory thresholds make "green" mean
 what a reader assumes. Start at the current honest number and ratchet up; never lower
 one to merge.
+
+### 8.1 Mutation score — the strength signal coverage cannot give
+
+Coverage proves a line **ran**, not that a test would fail if the line were wrong: an
+assertion-thin suite holds high coverage and catches nothing. Set a **mutation-score
+floor on the same critical directories that §8 thresholds** — start at the honest current
+score, ratchet up, **never lower a floor to merge**. Gate on **files changed in the PR**
+(e.g. a mutation runner's incremental mode) with a **scheduled full run**: a whole-repo
+run re-executes the suite once per mutant and is far too slow for a merge gate. A
+survivor no test can kill may be **equivalent**, and equivalence is undecidable — so it
+takes a written adjudication note, and an equivalent mutant is a finding about the
+*code* (dead or unreachable logic), not about the suite.
+
+### 8.2 Test weakening is a reviewable event — flagged, never auto-blocking
+
+Deleted assertions, deleted test files, a widened matcher (exact value → truthy → "any"),
+a new mock around a MUST-test surface (§5), or a lowered threshold each shrink what the
+suite can detect while CI stays green. The diff signal is **net-negative assertions**:
+surface it for human disposition — one sentence naming which behaviour is no longer
+asserted and why. **Flag, never block.** Legitimate refactors delete assertions by the
+dozen, so a blocking check here fires mostly on honest work and is disabled within a
+month, taking the signal with it permanently.
 
 ---
 
@@ -296,6 +379,14 @@ Before merging code — or a test:
 - [ ] Module mocks (if unavoidable) spread the original and override one export? (§4.4)
 - [ ] New cross-repo mirror → pin test on **both** sides, profile row added? (§5.6)
 - [ ] No committed `.only` / `.skip`; critical-directory thresholds still met? (§8)
+- [ ] Critical-path files changed → mutation score at or above the floor, and no floor
+      lowered in this diff? Each surviving mutant killed or adjudicated? (§8.1)
+- [ ] Does this diff delete assertions or tests, widen a matcher, mock a MUST-test
+      surface, or lower a threshold — and if so, is the reason stated? (§8.2)
+- [ ] Any golden/snapshot/fixture changed → expected value derived from the spec, not
+      regenerated from current behaviour? (§4.5)
+- [ ] No retry setting added; any test newly quarantined carries an owner and a return
+      date in the profile? (§7.5)
 
 ---
 
@@ -303,19 +394,28 @@ Before merging code — or a test:
 
 CI checks that make this standard enforceable rather than aspirational:
 
-- **Run `test` in every repo on every merge, egress-blocked.** Turns §2 from policy
+- **[testing.GR1]** **Run `test` in every repo on every merge, egress-blocked.** Turns §2 from policy
   into a hard failure the moment a live dependency sneaks in.
-- **The env-seed meta-test** (§2.3): boot-required vars ⊆ test-setup defaults, asserted
+- **[testing.GR2]** **The env-seed meta-test** (§2.3): boot-required vars ⊆ test-setup defaults, asserted
   in the suite itself. Kills the import-bomb class outright.
-- **A workspace check that every repo has a `test` script** (mechanics in
+- **[testing.GR3]** **A workspace check that every repo has a `test` script** (mechanics in
   `tooling-and-workspace.md`). Absence fails CI, not a code review argument.
-- **Per-directory coverage thresholds on the critical paths** (§8), enforced by the
-  runner's threshold config — ratchet-up only.
-- **A lint rule rejecting committed `.only`/`.skip`** (e.g. eslint-plugin-jest /
-  vitest equivalents) — a skipped invariant test is a silent standards exit.
-- **Every mirror listed in the profile names its two pin tests** (§5.6); a profile row
+- **[testing.GR4]** **Per-directory coverage thresholds on the critical paths** (§8), enforced by the
+  runner's threshold config — ratchet-up only. **Plus a mutation-score floor on the same
+  directories** (§8.1): a mutation runner (e.g. Stryker/PIT class) in incremental mode on
+  the PR diff as the gate, the full run on a schedule, floors stored in version control.
+- **[testing.GR5]** **A lint rule rejecting committed `.only`/`.skip`** (e.g. eslint-plugin-jest /
+  vitest equivalents) — a skipped invariant test is a silent standards exit. **CI runs no
+  blanket retry** (§7.5); quarantine is an explicit tag/list with owner and date, and an
+  expired quarantine date fails the build.
+- **[testing.GR6]** **A non-blocking PR annotation for net-negative assertions** (§8.2) — a diff-stat or
+  PR-bot class check (e.g. Danger-style rules) that comments when assertion/test count
+  drops or a threshold is lowered. Advisory by design; making it block gets it disabled.
+- **[testing.GR7]** **Goldens and snapshots under required review** (§4.5) — a code-owners rule on the
+  snapshot/fixture directories, so a regenerated oracle cannot land unexamined.
+- **[testing.GR8]** **Every mirror listed in the profile names its two pin tests** (§5.6); a profile row
   with an empty "pinned by" cell is a finding, mirroring the audit vocabulary.
-- **Fail the run on open handles / lingering timers** (runner leak detection) — leaked
+- **[testing.GR9]** **Fail the run on open handles / lingering timers** (runner leak detection) — leaked
   handles are tomorrow's order-dependence flake (§7.3).
 
 ---
@@ -339,12 +439,12 @@ CI checks that make this standard enforceable rather than aspirational:
 | Contract (values) | Side A test | Side B test | Unpinned mirrors still open |
 | --- | --- | --- | --- |
 
-**Critical-directory coverage thresholds (§8):**
+**Critical-directory coverage thresholds and mutation floors (§8, §8.1):**
 
-| Repo / directory | Threshold | Why critical |
-| --- | --- | --- |
-
-**Known non-hermetic exceptions (§2.4) — quarantined, never in `test`:**
-
-| What | Needs | Script | Why it can't be hermetic |
+| Repo / directory | Coverage threshold | Mutation floor | Why critical |
 | --- | --- | --- | --- |
+
+**Quarantine register — non-hermetic (§2.4) and flaky (§7.5); never in the gating `test`:**
+
+| What | Why quarantined (non-hermetic / flake) | Separate script or tag | Owner | Return by |
+| --- | --- | --- | --- | --- |

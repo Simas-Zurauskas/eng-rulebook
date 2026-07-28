@@ -1,4 +1,4 @@
-# Engineering Standards Library
+# Engineering Rulebook Library
 
 > **What this is:** reusable, generic engineering standards — one file per topic — loaded by
 > AI agents and humans *before building*, so the patterns that survived real audits become
@@ -16,20 +16,21 @@ Three artifacts, three jobs — the same layering the comment standard is built 
 
 | Artifact | Job | Lives |
 | --- | --- | --- |
-| **Standards** (this library) | How we build — generic, cross-project | inside the `standards` skill (`references/`), routed by its `SKILL.md` |
-| **Audit** | How we verify — after the fact | this skill's [`audit.md`](../audit.md), invoked by `/standards audit` — writes reports to the workspace's `standards-audit/<date>/` |
+| **Standards** (this library) | How we build — generic, cross-project | inside the `eng-rulebook` skill (`references/`), routed by its `SKILL.md` |
+| **Audit** | How we verify — after the fact | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to the workspace's `eng-rulebook-audit/<date>/` |
 | **Project profiles** | The workspace's current facts (not run records) | this skill's `profiles/<topic>-profile.md` — per-workspace, since each workspace has its own copy of the skill |
 
-Standards and the audit are twins in **one skill**: `/standards <topic>` loads a rulebook
-before building; `/standards audit` checks the code against the same rulebooks and writes a
+Standards and the audit are twins in **one skill**: `/eng-rulebook <topic>` loads a rulebook
+before building; `/eng-rulebook audit` checks the code against the same rulebooks and writes a
 report. An audit finding maps back to the standard rule it violated (its `Standard:` field);
 a defect with no covering rule is a `library-gap` — a change request against these references.
 Both use the same severity language (consequence-if-it-fires × plausibility) and lens taxonomy.
 
 ## How a project adopts this
 
-1. **Copy the skill, not the standards.** A workspace adopts the library by taking the whole
-   `standards` skill folder into its `.claude/skills/`. `profiles/` is **untracked**, so a
+1. **Copy the skill, not the standards — into `.claude/skills/eng-rulebook/`.** The directory name
+   is the command; the frontmatter `name:` is only a display label. A workspace adopts the library
+   by taking the whole skill folder into its `.claude/skills/` under that exact name. `profiles/` is **untracked**, so a
    clone arrives with none — if you copied a directory instead, delete any inherited
    `<topic>-profile.md` (those are the previous workspace's facts). The skill's routing table
    loads the right master on demand. Never scatter copies of individual standards into repos,
@@ -41,11 +42,18 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
    data, not a run log.
 3. **Wire the guard rails.** Every standard ends with CI checks that make it enforceable
    rather than aspirational. Adopt them incrementally; each names what it catches.
-4. **Audit against it.** Run `/standards audit` periodically (reports land in the workspace's
-   `standards-audit/<date>/`); a finding that recurs across runs is either a missing guard
+4. **Audit against it.** Run `/eng-rulebook audit` periodically (reports land in the workspace's
+   `eng-rulebook-audit/<date>/`); a finding that recurs across runs is either a missing guard
    rail or a `library-gap` — fix the standard, not just the instance.
 
 ## The standards
+
+> **This is a scope index, not a router.** It answers *"what does each standard cover?"* — one row per file,
+> single-valued. It does **not** answer *"what do I read for the task in front of me?"*: that question is
+> task-keyed and legitimately multi-valued (several tasks need two or three masters), and it is owned by the
+> routing table in [`SKILL.md`](../SKILL.md#routing-table). Routing from this index instead silently drops the
+> multi-lane rows. Lane ownership — which file owns a subject when two could claim it — is owned by
+> [`_authoring.md`](_authoring.md) § Library index. This file **is** authoritative on the adoption model below.
 
 | Standard | One-line scope |
 | --- | --- |
@@ -60,9 +68,33 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
 | [`tooling-and-workspace.md`](tooling-and-workspace.md) | Multi-repo uniformity: package manager, script vocabulary, config baselines, lockfiles, generated dirs, CI parity |
 | [`mobile-app.md`](mobile-app.md) | The mobile client: session/push lifecycle, backgrounding, binary-vs-OTA versioning, store & native build config, wired-or-hidden controls |
 | [`comment-standard.md`](comment-standard.md) | Code comments: generated docs own the narrative, comments own point-of-edit constraints; reference rules and comment truth |
+| [`web-client.md`](web-client.md) | The browser surface: token handling in memory, the refresh race, route guards are UX not access control, XSS sinks and CSP, CSRF, third-party script authority, accessibility |
+| [`ai-features.md`](ai-features.md) | Product LLM/agent surfaces: untrusted-content-as-data, tool authority, schema-validated model output, evals as a gate, cost and quota |
+| [`data-protection.md`](data-protection.md) | Personal data as a code concern: the inventory, retention by class, deletion and export implementation, third-party egress, residency, consent as stored state |
+| [`supply-chain-and-build-integrity.md`](supply-chain-and-build-integrity.md) | What may enter the dependency tree, CI step and image pinning, workflow token scope, build-time identity, SBOM and signed provenance with fail-closed verification |
+| [`performance-and-data-access.md`](performance-and-data-access.md) | Cost that scales with data volume: index justification and query-shape matching, the N+1 class, result and payload bounds, caching, pool sizing, latency budgets and deadline cancellation |
 
 Authoring a new standard or editing one: [`_authoring.md`](_authoring.md) is the contract —
 required shape, genericity rules, lane ownership, evidence bar.
+
+## The delivery seam — this library owns WHAT, a delivery process owns WHEN
+
+These rulebooks are criteria. They do not decide when a check runs, who signs it off, or whether
+a change ships — that belongs to whatever delivery process a workspace uses (in this workspace,
+the `stagegate` skill, which declares the seam and its invariants from its side).
+
+Two consequences bind this library:
+
+- **Route delivery concerns out, don't absorb them.** Multi-reviewer panels, fresh-context
+  review, held-out authoring, tier routing, PR-size caps, deploy ordering and review cadence are
+  *process*. A rule here that legislates them grows a shadow copy of the delivery process, and
+  the two will disagree. Test: **if the obligation is about a person's workflow rather than a
+  property of the code, it is not ours.**
+- **This library never gates anything.** A rulebook states a property and, where relevant, a
+  blocking threshold (e.g. `security.md` §10's critical/high). Applying that threshold to a
+  particular change is the delivery process's call, and running `/eng-rulebook audit` as a
+  per-change gate is a category error — it is workspace-scoped and would fail a one-line fix on
+  pre-existing findings in unrelated repos.
 
 ## Cross-cutting themes the topics share
 
