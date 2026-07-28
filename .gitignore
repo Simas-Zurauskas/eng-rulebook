@@ -1,0 +1,11 @@
+# Profiles are one workspace's project facts — never shared library content.
+#
+# The library master ships `profiles/` empty by design: a profile filled in for one
+# project reads as a *decision* in every other project that inherits it, which is the
+# exact drift the library exists to prevent (see profiles/README.md).
+#
+# Each adopting workspace fills its own profiles in locally. They stay untracked here
+# so a `git pull` of a library update never clobbers them and a `git push` never
+# publishes one project's session tiers, env tables, ids, or thresholds to another.
+profiles/*
+!profiles/README.md
