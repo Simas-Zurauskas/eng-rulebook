@@ -1,6 +1,6 @@
 ---
 name: eng-rulebook
-description: Engineering standards — 16 generic rulebooks loaded before building or checked against code. BUILD-TIME load (default), for nontrivial work on: API endpoints/wire contracts, auth/sessions/uploads, personal data/retention/deletion, jobs/queues/paid external calls, env or deploy config, tests, logging/metrics/alarms, dependencies/CI/build integrity, queries/indexes/caching, web client (XSS, CSRF, tokens, accessibility), mobile app, LLM or agent features, repo scaffolding, TypeScript strictness, code comments — or when the user mentions standards, guidelines or house rules; invoke /eng-rulebook <topic>. Also: /eng-rulebook check [<ref>] diff-scoped review at merge cadence; /eng-rulebook profile <topic> declare workspace facts; /eng-rulebook contribute raise a library-gap; /eng-rulebook audit [<topic>] multi-agent verified codebase audit writing a report — use for a quality or security audit, full review, or checking code against the standards.
+description: Engineering standards — 16 generic rulebooks loaded before building or checked against code. BUILD-TIME load (default), for nontrivial work on: API endpoints/wire contracts, auth/sessions/uploads, personal data/retention/deletion, jobs/queues/paid external calls, env or deploy config, tests, logging/metrics/alarms, dependencies/CI/build integrity, queries/indexes/caching, web client (XSS, CSRF, tokens, accessibility), mobile app, LLM or agent features, repo scaffolding, TypeScript strictness, code comments — or when the user mentions standards, guidelines or house rules; invoke /eng-rulebook <topic>. Also: /eng-rulebook check [<ref>] diff-scoped review at merge cadence; /eng-rulebook profile <topic> declare workspace facts; /eng-rulebook contribute raise a library-gap; /eng-rulebook pulse between-audit structural tripwires (duplication, churn, error-masking vs a baseline); /eng-rulebook audit [<topic>] multi-agent verified codebase audit writing a report — use for a quality or security audit, full review, or checking code against the standards.
 ---
 
 # Engineering standards router
@@ -16,8 +16,9 @@ for defects no rule covers). These codify the patterns that survived real audits
 | --- | --- | --- |
 | `/eng-rulebook <topic>` (e.g. `security`), or auto-triggered by build/review work | **Build-time load** (default) | Read the matching master(s) + profile **before writing**, so the rules are defaults, not after-the-fact findings. Follow "How to use" below. |
 | `/eng-rulebook check [<ref>]` | **Check** (diff-scoped) | Verify a change against the standards it touches, at merge cadence. Follow "Check mode" below. |
-| `/eng-rulebook guardrails` | **Guard rails** | Reconcile declared rails against this workspace's ledger: `node meta/guard-rails.mjs --ledger`. Seed one with `--template`. A rail claimed wired that cannot be located is a finding at the rule's severity. |
+| `/eng-rulebook guardrails` | **Guard rails** | Reconcile declared rails against this workspace's ledger (`eng-rulebook-audit/profiles/guard-rails.md`): from the **workspace root**, `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger`. Seed one with `--template`. A rail claimed wired that cannot be located is a finding at the rule's severity. |
 | `/eng-rulebook contribute` | **Contribute** | Raise a `library-gap` against the master. Check it against the intake bar in `references/_gaps.md`, then add a row there. |
+| `/eng-rulebook pulse` | **Pulse** | Between-audit structural tripwires: from the workspace root, `node .claude/skills/eng-rulebook/meta/pulse.mjs` (`--baseline` to set the reference point). Approximate duplication/churn/error-masking metrics vs baseline, written to `eng-rulebook-audit/pulse/<date>.md`. A crossed tripwire is a reason to pull `/eng-rulebook audit` forward — a signal, never a finding and never a gate. |
 | `/eng-rulebook profile <topic>` · `/eng-rulebook profile status` | **Profile** | Create or review this workspace's declared facts for a topic. Follow "Profile mode" below. |
 | `/eng-rulebook audit`, `/eng-rulebook audit <topic>`, `/eng-rulebook all` | **Audit** | Run the multi-agent, coverage-gated, independently-verified audit of the codebase against the standards; write a report to `eng-rulebook-audit/<date>/`. **Follow [`audit.md`](audit.md) — read it in full and execute it.** `audit` = all standards; `audit <topic>` = one standard's criteria; `all` = alias for `audit`. |
 
@@ -30,13 +31,16 @@ applied after the fact.
 1. Match the task to topic(s) in the routing table below.
 2. **Read the matching master file(s) whole** — each is 200–450 lines, sized to be loaded
    in full. Load the lane you're in, not the library.
-3. **Check this skill's `profiles/` directory for a profile:** `profiles/<topic>-profile.md`.
+3. **Check the workspace's `eng-rulebook-audit/profiles/` directory for a profile:**
+   `eng-rulebook-audit/profiles/<topic>-profile.md` under the workspace root (next to the
+   audit reports, tracked in the workspace repo so the facts travel to teammates and CI).
    A profile is this workspace's filled-in copy of the standard's Appendix A template — the
    current project facts that make generic rules decidable (spec globs, state machines, env
    tables, session tiers). Living reference data, not run records: update it when the
    project changes.
    If it is missing, proceed on the master alone, say so, and offer to create the profile
-   from the master's Appendix A template.
+   from the master's Appendix A template. (A profile found in the *skill's* old `profiles/`
+   directory is a pre-relocation leftover: offer to move it to `eng-rulebook-audit/profiles/`.)
 4. If a topic argument was passed (`/eng-rulebook security`), load that master directly.
 5. When fanning out implementation subagents, put the relevant master's path (and the
    profile path, if any) in the agent prompt — rules only work in the context that writes
@@ -84,14 +88,26 @@ it missed nothing across a whole workspace. Here the scope is given.
 2. **Route from changed paths, not from self-classification.** Map each changed file to lanes
    via the routing table. A change touching `routes/`, `auth/`, a migration and a workflow file
    loads four lanes — the agent's sense of "this is just a small fix" is not the router.
-3. **Load only those masters, plus any filled profile for them.** Note any missing profile that
+3. **Tier the diff — from the same changed paths, never from judgement.** Routing (step 2)
+   decides *which* lanes; the tier decides *depth*. Triggers are OR-combined and the most
+   dangerous attribute wins:
+   - **Trivial** — docs, comments, or formatting only; no executable-behaviour change. Emit the
+     receipt row and stop; skip master loads. Mechanical rails (lint, SAST, dependency audit)
+     still run — the security gate is never dropped, at any tier.
+   - **Elevated** — any changed path touches: auth/session/crypto or payment code; a migration
+     or schema; a dependency added or bumped; CI/workflow files; agent rules files (`CLAUDE.md`,
+     `.claude/skills/`, agent instruction files — security-critical config); or personal-data
+     egress. Load every matched lane's master in full, and the verification step (7) records an
+     explicit refutation attempt per finding. The receipt names the tier and the triggers hit.
+   - **Standard** — everything else: the procedure as written below.
+4. **Load only those masters, plus any filled profile for them.** Note any missing profile that
    the loaded rules need; do not guess its contents.
-4. **Check the diff against each loaded master's Checklist** — those boxes are written to be
+5. **Check the diff against each loaded master's Checklist** — those boxes are written to be
    decidable from a diff alone (`_authoring.md` rule 12).
-5. **Report findings in the audit's format** (`Standard:` field, severity, evidence with
+6. **Report findings in the audit's format** (`Standard:` field, severity, evidence with
    `path:line`) so a `/eng-rulebook check` finding and an audit finding are the same object and can
    be triaged together.
-6. **Verify before reporting.** Re-read the cited code and try to refute each finding — a guard
+7. **Verify before reporting.** Re-read the cited code and try to refute each finding — a guard
    upstream, an index declared elsewhere, a test that pins the behaviour. Unverified leads are
    labelled `Plausible`, never reported as defects.
 
@@ -106,11 +122,15 @@ Whether a change ships is the delivery process's call (`references/README.md` §
 ## Profile mode
 
 A profile is this workspace's filled-in copy of a standard's **Appendix A**. Several rules are
-explicitly undecidable without one, so an empty `profiles/` is not a neutral state — it is a set
-of decisions nobody has made.
+explicitly undecidable without one, so an empty `eng-rulebook-audit/profiles/` is not a neutral
+state — it is a set of decisions nobody has made.
+
+Profiles live under the **workspace root** at `eng-rulebook-audit/profiles/` — beside the audit
+reports, tracked in the workspace repo — never inside the skill folder, so a skill update can't
+clobber them and they reach teammates and CI with the rest of the project.
 
 `/eng-rulebook profile <topic>` — copy that master's Appendix A tables into
-`profiles/<topic>-profile.md` and fill what can be filled:
+`eng-rulebook-audit/profiles/<topic>-profile.md` and fill what can be filled:
 
 1. **Derive what the code already answers.** Most cells are discoverable — session tiers from the
    auth middleware, env tables from the boot guard, generated directories from the build scripts.
@@ -126,6 +146,12 @@ of decisions nobody has made.
 `/eng-rulebook profile status` — list every master, whether its profile exists, how many `DECIDE:`
 cells remain, and how far its `verified_at` commit is behind HEAD. Report honestly; do not
 present a partially-filled profile as complete.
+
+**Fill order.** Four profiles are load-bearing — they carry most of the rules that are
+undecidable without project facts — and are filled **first**, in adoption week one:
+**security**, **config-and-environment**, **data-integrity**, **testing**. Every other
+profile is filled when its lane is first touched by real work; deferring one is honest,
+skipping the first four silently disables the rules a team most needs.
 
 ## Routing table
 
@@ -170,15 +196,17 @@ follow [`audit.md`](audit.md) — the `/eng-rulebook audit` procedure.
 
 - **The skill folder is the unit of reuse, and its directory name is the command.** Another
   workspace adopts the library by taking this whole skill into its `.claude/skills/` **as
-  `standards/`** — Claude Code derives a project skill's command from the directory name, and the
+  `eng-rulebook/`** — Claude Code derives a project skill's command from the directory name, and the
   `name:` frontmatter field above is only the display label. Installed under any other directory
-  name, every `/eng-rulebook …` reference in these files is wrong for that workspace. `profiles/` is **untracked** (`.gitignore`),
-  so it arrives empty and a workspace's own profiles never travel back into the library —
-  a profile is that workspace's facts, and inherited by another it reads as a decision
-  nobody there made. If you find a `<topic>-profile.md` naming a project that is not this
-  one, it is inherited contamination: delete it and say so. Never scatter copies of
+  name, every `/eng-rulebook …` reference in these files is wrong for that workspace. The skill
+  carries **no profiles** — a workspace's profiles live in its own tree at
+  `eng-rulebook-audit/profiles/`, so a skill update never clobbers them and one project's facts
+  never arrive in another as a decision nobody there made. If you find a `<topic>-profile.md`
+  inside the skill folder naming a project that is not this one, it is inherited contamination
+  from before the relocation: move this workspace's own profiles to
+  `eng-rulebook-audit/profiles/` and delete the rest, saying so. Never scatter copies of
   individual standards into repos, wikis, or prompts — per-project variance lives in
-  `profiles/` only.
+  `eng-rulebook-audit/profiles/` only.
 - **A recurring audit finding is a library bug:** either a standard is missing a rule or a
   guard rail isn't wired. Update the master (per `references/_authoring.md`) — don't just fix the
   instance.

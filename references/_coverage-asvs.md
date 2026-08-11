@@ -65,6 +65,12 @@ conditions, especially #2 — *check the sibling lane first*, several of these m
 answered by a rule this reading missed). **Nothing here is an accepted gap.** Filing is a human
 decision; this list is evidence for it, produced by one pass of chapter-level reading.
 
+> **Adjudicated 2026-08-11** — every candidate below was run through the intake bar and now has
+> a row in `_gaps.md` § Rows: C1–C6, C8 and the smuggling half of C7 **accepted** (C7a); the
+> GraphQL/WebSocket half of C7 (C7b), the sandboxing half of C9 (C9b), and C10 **rejected**
+> with reasoning; C9's prototype-pollution half accepted (C9a). The rows there are now the
+> authority on status; this table stays as the reading evidence behind them.
+
 | # | Delta | ASVS chapter | Suggested lane | Note for the intake bar |
 | --- | --- | --- | --- | --- |
 | C1 | No rule on multi-factor authentication — enrolment, verification, recovery, or when it is required | V6 Authentication | `security.md` | The largest L2 delta. Bar #3 (generalises) is clearly met; bar #4 (code-shaped) needs care — "require MFA for admins" is a product decision, but "recovery codes are single-use and hashed" is code-shaped |

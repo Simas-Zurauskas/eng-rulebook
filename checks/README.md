@@ -9,6 +9,9 @@ wiring rather than authoring.
 | --- | --- | --- |
 | `semgrep/type-safety.yaml` | `type-safety.md` § Guard rails — the cast rules | semgrep |
 | `semgrep/resilience.yaml` | `resilience.md` §2 — explicit per-operation timeouts | semgrep |
+| `semgrep/supply-chain.yaml` | `supply-chain-and-build-integrity.md` §3.1 — actions pinned to a commit SHA (the pattern-matchable slice of GR1) | semgrep |
+| `semgrep/web-client.yaml` | `web-client.md` §5.1 — raw-HTML sinks surfaced ("show me the sanitiser"; the sink half of GR1) | semgrep |
+| `semgrep/config-and-environment.yaml` | `config-and-environment.md` §2.3 — numeric env cast at point of use (NaN fails open) | semgrep |
 | `eslint/eng-rulebook-base.mjs` | `type-safety.md` § Guard rails — the lint half | ESLint flat config |
 | `tsconfig/eng-rulebook-base.json` | `type-safety.md` — the strictness baseline | `tsc` (extend, don't copy) |
 | `ci/eng-rulebook-check.yml` | the wiring that runs the above | GitHub Actions (starting point) |
@@ -26,8 +29,8 @@ smaller honest one, because it reads as solved — the library's own cross-cutti
   separate bounded from unbounded retry, because both spellings return on success and both use the
   same infinite-loop construct. Loose, it fired on every stream-reader `for (;;)` loop; tight
   enough to suppress those, it could not fire on a genuine violation either. **Judgement-only.**
-- **Most of the library.** Of ~74 declared guard rails across 16 rulebooks, a small minority are
-  pattern-matchable. The rest need a type-checker, a test run, a live probe, or a human — and each
+- **Most of the library.** Of the 113 declared guard rails across 16 rulebooks (enumerate them
+  with `node meta/guard-rails.mjs`), a small minority are pattern-matchable. The rest need a type-checker, a test run, a live probe, or a human — and each
   rulebook's own Guard rails section says which. Nothing here is a substitute for reading it.
 - **Anything requiring project facts.** A rule keyed on a session tier, an env table or a declared
   threshold cannot ship as a generic pattern; it needs the profile. That is not a limitation of
@@ -65,6 +68,30 @@ harness is not production code and a rule that pretends otherwise trains people 
 or a configured client instance. Treat a hit as "show me the timeout", not as a defect. The cast
 rules ship at ERROR because `as unknown as` is unambiguous in the source.
 
+## Validation — the 2026-08-11 batch (supply-chain, web-client, config-and-environment)
+
+Same method: a labelled fixture (10 true positives across the three rules; false-positive bait
+included a YAML comment, SHA-pinned and local actions, a digest-pinned `docker://…@sha256:` ref,
+`innerHTML = ""`, `textContent`, a numeric cast of a literal, an env *accessor* call, and a
+test-path file) — final state **10/10 true positives, 0 false positives** — then three real
+repositories (a JSX web framework, a schema
+library, a large React app; 22 workflow files, ~1,400 TS/TSX files), every hit read against the
+source line:
+
+1. `workflow-unpinned-action`: 32 hits, all genuine tag/branch refs in one repo; the two repos
+   that pin every action to a full SHA produced zero hits — the pinned form passes by shape.
+   Ships at ERROR: a ref is either a 40-hex SHA or it is not.
+2. `raw-html-sink` **was tightened by this pass**: the bare `dangerouslySetInnerHTML` identifier
+   fired on a JSX framework's *renderer internals* — string comparisons (`key ===
+   'dangerouslySetInnerHTML'`) and an optional prop typing — 4 of 8 hits writing no HTML. The
+   shipped regex requires the prop to be *used* (`={...}` or non-optional `: {...}`), which kept
+   the 4 real raw-HTML writes and dropped all 4 non-uses. Ships at WARNING — a hit may be
+   sanitiser output; treat it as "show me the sanitiser".
+3. `env-number-fail-open`: fixture 3/3; **zero hits across all three real repos** — libraries
+   rarely parse env numerics, so the real-repo pass demonstrates quietness, not recall. Ships at
+   WARNING with that calibration gap stated; a hit inside the env module next to its guard is
+   the fix, not a defect.
+
 ## Adopting
 
 1. Extend `tsconfig/eng-rulebook-base.json`; do not copy it.
@@ -75,3 +102,8 @@ rules ship at ERROR because `as unknown as` is unambiguous in the source.
    deliberately failing rather than stubbed, because a step that pretends to scan reads as covered.
 5. Record what you wired in the guard-rail ledger, so "adopt incrementally" stays distinguishable
    from "adopted nothing".
+6. **Make `/eng-rulebook check` a PR ritual, not a habit.** The diff-scoped check is agent-invoked,
+   so nothing runs it unless something asks: either add the PR-template checkbox
+   (`- [ ] /eng-rulebook check run — findings attached, or "none"`) and reject PRs without it, or
+   uncomment the optional CI job at the bottom of `ci/eng-rulebook-check.yml`. A cadence that
+   lives in memory is the enforcement channel every rulebook here refuses to trust.

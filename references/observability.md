@@ -379,7 +379,7 @@ Cheap CI checks that make this standard enforceable rather than aspirational:
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
 > Copy the tables into the project's own profile
-> (`profiles/observability-profile.md`) and fill them there. Agents: read
+> (`eng-rulebook-audit/profiles/observability-profile.md`) and fill them there. Agents: read
 > the project's profile before adding metrics, domains, or alarms — names are contracts.
 
 **Logger domains per repo (§4):**

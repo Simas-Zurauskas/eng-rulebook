@@ -18,8 +18,8 @@ API's spec. Rules are stack-agnostic; frameworks appear as labelled examples. Th
 
 **Owns:** refresh concurrency across a tab tree, sign-out teardown in a browser, route-guard semantics and bundle
 contents, the enumerable holes in framework auto-escaping, URL-scheme and redirect checks, CSP *buildability*,
-client-side CSRF applicability, third-party script admission and integrity, **accessibility of the rendered UI (this
-file is the library's only accessibility lane)**, client error reporting, bundle staleness and build-inlined values.
+client-side CSRF applicability, third-party script admission and integrity, **accessibility of the rendered UI (the
+web half of the accessibility lane; native mobile surfaces are `mobile-app.md` §12)**, client error reporting, bundle staleness and build-inlined values.
 **Does not own** (one-line cross-refs only):
 
 - Session design and tiering; cookie attributes, the served header set, **and the token-storage and sink-hygiene
@@ -252,8 +252,8 @@ restricted to known hosts (§5.4) bounds where a compromised script can send wha
 
 ## 8. Accessibility
 
-*WCAG 2.2 and WAI-ARIA 1.2. This file is the library's only accessibility lane and covers the rendered UI of any
-client. The conformance level and any regulatory obligation are profile rows (§8.6); the rules below are testable code
+*WCAG 2.2 and WAI-ARIA 1.2. This file is the accessibility lane for web-rendered UI; native mobile surfaces are
+`mobile-app.md` §12. The conformance level and any regulatory obligation are profile rows (§8.6); the rules below are testable code
 obligations that hold regardless.*
 
 ### 8.1 Every interactive element is keyboard reachable and operable
@@ -409,7 +409,7 @@ cookie is *sufficient* to authorise a write; both are review questions answered 
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy the tables into the
-> project's profile (e.g. `profiles/web-client-profile.md`) and fill them there. Agents: §2, §3, §4, §5.4, §6, §7, §8, §9 and §10 are not decidable without it.
+> project's profile (e.g. `eng-rulebook-audit/profiles/web-client-profile.md`) and fill them there. Agents: §2, §3, §4, §5.4, §6, §7, §8, §9 and §10 are not decidable without it.
 
 **Web surfaces (§4, §5.4) — one row per deployed client. *Privileged* = renders admin function, billing, or
 personal data (§7.1):**

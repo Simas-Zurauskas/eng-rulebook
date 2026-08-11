@@ -346,7 +346,7 @@ CI checks that make this standard enforceable rather than aspirational:
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
 > Copy the tables into the project's profile
-> (e.g. `profiles/api-contracts-profile.md`) and fill them there.
+> (e.g. `eng-rulebook-audit/profiles/api-contracts-profile.md`) and fill them there.
 
 **Contract source of truth (§2)**
 

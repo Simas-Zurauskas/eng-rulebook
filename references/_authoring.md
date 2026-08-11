@@ -22,7 +22,8 @@ maps cleanly back to the rule it violated.
   of reuse; when a master improves, update it in every workspace's copy of the skill.
 - **Per-project variance lives in a profile**, not in the master: each standard that needs
   project facts ends with an **Appendix A — Project profile (TEMPLATE)**, explicitly blank,
-  which the project copies to `profiles/<topic>-profile.md` and fills in.
+  which the project copies to `eng-rulebook-audit/profiles/<topic>-profile.md` under the
+  **workspace root** (next to the audit reports, tracked in the workspace repo) and fills in.
 
 ## Required shape
 

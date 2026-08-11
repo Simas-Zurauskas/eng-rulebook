@@ -10,10 +10,10 @@
 // explicit rather than positional because a positional id renumbers every later rail when one is
 // inserted — the exact hazard _authoring.md rule 11 forbids for sub-rules.
 //
-// Usage:
-//   node meta/guard-rails.mjs              list every declared rail, flagging any without an id
-//   node meta/guard-rails.mjs --ledger     reconcile against profiles/guard-rails.md
-//   node meta/guard-rails.mjs --template   print a ledger seeded with every declared rail
+// Usage (run from the WORKSPACE ROOT — the ledger lives beside the audit reports):
+//   node .claude/skills/eng-rulebook/meta/guard-rails.mjs              list every declared rail
+//   node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger     reconcile against eng-rulebook-audit/profiles/guard-rails.md
+//   node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template   print a ledger seeded with every declared rail
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
 import { join, dirname, basename } from 'node:path'
@@ -21,7 +21,12 @@ import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REF = join(ROOT, 'references')
-const LEDGER = join(ROOT, 'profiles', 'guard-rails.md')
+// The ledger is a WORKSPACE fact: it lives in the workspace tree at
+// eng-rulebook-audit/profiles/guard-rails.md, resolved from the current working directory.
+// The skill-local profiles/ path is the pre-relocation legacy location — still read, with a
+// migration hint, so an old install keeps working.
+const LEDGER = join(process.cwd(), 'eng-rulebook-audit', 'profiles', 'guard-rails.md')
+const LEGACY_LEDGER = join(ROOT, 'profiles', 'guard-rails.md')
 
 const standards = readdirSync(REF)
   .filter(f => f.endsWith('.md') && f !== 'README.md' && !f.startsWith('_'))
@@ -62,7 +67,8 @@ if (mode === '--template') {
   console.log(`# Guard-rail ledger — this workspace
 
 > Which declared guard rails are actually wired **here**. Generated from the library's rulebooks
-> with \`node meta/guard-rails.mjs --template\`; keep it current by hand.
+> with \`node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template\` (run from the
+> workspace root; lives at \`eng-rulebook-audit/profiles/guard-rails.md\`); keep it current by hand.
 >
 > "Adopt incrementally" is only honest if the increment is recorded. An unrecorded rail is
 > indistinguishable from an unwired one, which is the half-adopted-mechanism failure the library
@@ -82,13 +88,21 @@ if (mode === '--template') {
 }
 
 if (mode === '--ledger') {
-  if (!existsSync(LEDGER)) {
-    console.log('No profiles/guard-rails.md in this workspace.')
+  let ledgerPath = LEDGER
+  if (!existsSync(ledgerPath) && existsSync(LEGACY_LEDGER)) {
+    ledgerPath = LEGACY_LEDGER
+    console.log('NOTE: using the legacy skill-local ledger (profiles/guard-rails.md).')
+    console.log('Migrate it:  mv "' + LEGACY_LEDGER + '" eng-rulebook-audit/profiles/guard-rails.md')
+    console.log('')
+  }
+  if (!existsSync(ledgerPath)) {
+    console.log('No eng-rulebook-audit/profiles/guard-rails.md under the current directory')
+    console.log('(run from the workspace root — the ledger lives beside the audit reports).')
     console.log(`${all.length} rails are declared and NONE are recorded as wired.`)
-    console.log('Seed one:  node meta/guard-rails.mjs --template > profiles/guard-rails.md')
+    console.log('Seed one:  mkdir -p eng-rulebook-audit/profiles && node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template > eng-rulebook-audit/profiles/guard-rails.md')
     process.exit(1)
   }
-  const led = readFileSync(LEDGER, 'utf8')
+  const led = readFileSync(ledgerPath, 'utf8')
   const recorded = new Map()
   for (const m of led.matchAll(/^\|\s*`([a-z-]+\.GR\d+)`\s*\|[^|]*\|[^|]*\|\s*([^|]+?)\s*\|/gm)) {
     recorded.set(m[1], m[2].trim())

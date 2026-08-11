@@ -1,0 +1,49 @@
+# Semgrep rules for references/web-client.md
+#
+# Each rule id is `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
+# failure is traceable to a line of the standard rather than to an unexplained lint id.
+#
+# Tested against a labelled fixture and real repositories before shipping — see
+# checks/README.md § Validation.
+
+rules:
+  - id: eng-rulebook.web-client.raw-html-sink
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >-
+      eng-rulebook/web-client.md §5.1: this is one of the enumerable holes in the framework's
+      auto-escaping — a raw-HTML sink. Like the fetch-without-timeout rule, this detects the
+      SHAPE and cannot prove the value is unsanitised: a hit may be fine because the
+      value is sanitiser output (§5.2 — the sanitiser must not permit script) or a build-time
+      constant. Treat a hit as "show me the sanitiser", not as a defect. Part of the sink half
+      of [web-client.GR1].
+    paths:
+      exclude:
+        - "*.test.ts"
+        - "*.test.tsx"
+        - "*.spec.ts"
+        - "*.spec.tsx"
+        - "test/"
+        - "tests/"
+        - "__tests__/"
+        - "__mocks__/"
+        - "benchmarks/"
+        - "bench/"
+        - "examples/"
+        - "example/"
+        - "scripts/"
+        - "fixtures/"
+        - "*.d.ts"
+    pattern-either:
+      - patterns:
+          - pattern: $EL.innerHTML = $HTML
+          - pattern-not: $EL.innerHTML = ""
+          - pattern-not: $EL.innerHTML = ''
+      - patterns:
+          - pattern: $EL.outerHTML = $HTML
+      - pattern: $EL.insertAdjacentHTML($POS, $HTML)
+      # Matches the prop being USED (JSX attribute `={...}` or object property `: {...}`), not the
+      # identifier appearing in strings, comparisons, or type definitions (`?:` is excluded) —
+      # validation on a JSX framework's own source showed the bare identifier fires on its
+      # renderer's string comparisons and prop typings, which write no HTML.
+      - pattern-regex: 'dangerouslySetInnerHTML(\s*=\s*\{|(?<!\?):\s*\{)'

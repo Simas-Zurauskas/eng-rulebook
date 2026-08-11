@@ -409,7 +409,7 @@ CI checks that make this standard enforceable, not aspirational:
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy the
-> tables into the project's profile (e.g. `profiles/security-profile.md`) and fill
+> tables into the project's profile (e.g. `eng-rulebook-audit/profiles/security-profile.md`) and fill
 > them there. Agents: read the project's profile before touching auth, storage, rate limits, or
 > PII — §1, §2, §8, §9, and §12 are not decidable without it.
 

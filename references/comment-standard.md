@@ -362,7 +362,7 @@ exists to prevent.
 ### 9.2 Create the project's profile
 
 from the Appendix A template, and keep it *with the
-project* (e.g. `profiles/comment-profile.md`). It records the project's
+project* (e.g. `eng-rulebook-audit/profiles/comment-profile.md`). It records the project's
 machine-consumed globs, unpinned mirrors, and deliberate seams. Without it, agents cannot
 tell §3.1 spec from §4.1 prose — and will delete a contract. Link it from `CLAUDE.md` too.
 

@@ -18,7 +18,7 @@ Three artifacts, three jobs — the same layering the comment standard is built 
 | --- | --- | --- |
 | **Standards** (this library) | How we build — generic, cross-project | inside the `eng-rulebook` skill (`references/`), routed by its `SKILL.md` |
 | **Audit** | How we verify — after the fact | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to the workspace's `eng-rulebook-audit/<date>/` |
-| **Project profiles** | The workspace's current facts (not run records) | this skill's `profiles/<topic>-profile.md` — per-workspace, since each workspace has its own copy of the skill |
+| **Project profiles** | The workspace's current facts (not run records) | the workspace's `eng-rulebook-audit/profiles/<topic>-profile.md` — next to the audit reports, **tracked in the workspace repo** so the facts travel to teammates and CI |
 
 Standards and the audit are twins in **one skill**: `/eng-rulebook <topic>` loads a rulebook
 before building; `/eng-rulebook audit` checks the code against the same rulebooks and writes a
@@ -30,16 +30,19 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
 
 1. **Copy the skill, not the standards — into `.claude/skills/eng-rulebook/`.** The directory name
    is the command; the frontmatter `name:` is only a display label. A workspace adopts the library
-   by taking the whole skill folder into its `.claude/skills/` under that exact name. `profiles/` is **untracked**, so a
-   clone arrives with none — if you copied a directory instead, delete any inherited
-   `<topic>-profile.md` (those are the previous workspace's facts). The skill's routing table
+   by taking the whole skill folder into its `.claude/skills/` under that exact name. The skill
+   carries **no profiles** — those are workspace facts and live in the workspace tree (next
+   step), so a skill update never touches them and another project's facts never arrive with
+   the library. The skill's routing table
    loads the right master on demand. Never scatter copies of individual standards into repos,
    wikis, or prompts; that recreates the drift problem the library exists to prevent.
 2. **Fill in profiles.** Each standard that needs project facts ends with an
    **Appendix A — Project profile (TEMPLATE)**. Copy the template (not the standard) to
-   the skill's `profiles/<topic>-profile.md`, fill it in, keep it current. Rules are
-   universal; the profile is this workspace's instantiation of them — living reference
-   data, not a run log.
+   the workspace's `eng-rulebook-audit/profiles/<topic>-profile.md`, fill it in, keep it
+   current — and **track it in the workspace repo**, so teammates and CI see the same facts.
+   Rules are universal; the profile is this workspace's instantiation of them — living
+   reference data, not a run log. *(Migrating an older install: move any
+   `.claude/skills/eng-rulebook/profiles/*.md` here.)*
 3. **Wire the guard rails.** Every standard ends with CI checks that make it enforceable
    rather than aspirational. Adopt them incrementally; each names what it catches.
 4. **Audit against it.** Run `/eng-rulebook audit` periodically (reports land in the workspace's

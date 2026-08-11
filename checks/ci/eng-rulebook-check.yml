@@ -68,3 +68,33 @@ jobs:
           echo "protection). Left unwired deliberately: a step that pretends to scan is worse"
           echo "than an absent one, because it reads as covered."
           exit 1
+
+# ------------------------------------------------------------------------------------------------
+# OPTIONAL: /eng-rulebook check on every PR, as a job.
+#
+# The diff-scoped check (SKILL.md § Check mode) is agent-invoked, so by default its per-PR
+# cadence rests on habit — the one enforcement channel this library otherwise refuses to rely
+# on. Two ways to make it structural; do at least one:
+#
+#   (a) PR ritual (no infrastructure): add a required checkbox to the PR template —
+#         - [ ] `/eng-rulebook check` run — findings attached, or "none"
+#       and have review reject PRs with the box unticked. Cheap, and it keeps the human owner.
+#
+#   (b) CI job (below): run the check headlessly via an agent CLI. Uncomment and adapt.
+#       Pin the action/CLI to a SHA like everything else (supply-chain §3.1); scope its token
+#       to read-only; treat its rules files as security-critical config (ai-features.md §2).
+#
+#  eng-rulebook-check:
+#    runs-on: ubuntu-latest
+#    permissions:
+#      contents: read
+#    steps:
+#      - uses: actions/checkout@vN        # PIN TO A SHA; fetch-depth: 0 for merge-base diffs
+#        with:
+#          fetch-depth: 0
+#      # Any agent CLI able to load the skill works; e.g. Claude Code's headless mode:
+#      #   npm install -g @anthropic-ai/claude-code   (pin the version)
+#      #   claude -p "/eng-rulebook check origin/${{ github.base_ref }}" --allowedTools "Read,Grep,Glob,Bash(git *)"
+#      # The check blocks nothing by design — post its findings as a PR comment and let the
+#      # delivery process decide (references/README.md § The delivery seam).
+# ------------------------------------------------------------------------------------------------

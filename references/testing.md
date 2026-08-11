@@ -424,7 +424,7 @@ CI checks that make this standard enforceable rather than aspirational:
 
 > **This is a blank template. Do not fill it in here** — this file is the shared
 > master. Copy the tables into the project's own profile
-> (`profiles/testing-profile.md`) and fill them there. Agents: read the
+> (`eng-rulebook-audit/profiles/testing-profile.md`) and fill them there. Agents: read the
 > project's profile before adding tests — it names the harness to reuse, the seeds,
 > the pinned contracts, and the declared exceptions.
 

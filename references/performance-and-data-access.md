@@ -409,7 +409,7 @@ CI checks that make this enforceable rather than aspirational; judgement-only ru
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy the
-> tables into `profiles/performance-and-data-access-profile.md` and fill them there. Read the
+> tables into `eng-rulebook-audit/profiles/performance-and-data-access-profile.md` and fill them there. Read the
 > profile before touching a query, a cache, or a pool: §2, §4, §6, §7 and §8 are not decidable
 > without the project's numbers.
 

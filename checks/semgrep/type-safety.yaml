@@ -1,6 +1,6 @@
 # Semgrep rules for references/type-safety.md
 #
-# Each rule id is `standards.<lane>.<slug>` and each message names the rule it enforces, so a CI
+# Each rule id is `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
 # failure is traceable to a line of the standard rather than to an unexplained lint id.
 #
 # Tested against real repositories before shipping — see checks/README.md § Validation.

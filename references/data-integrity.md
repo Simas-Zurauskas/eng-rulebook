@@ -384,7 +384,7 @@ CI checks that make this enforceable rather than aspirational:
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
 > Copy the tables into the project's own profile
-> (`profiles/data-integrity-profile.md`) and fill them there. Agents: read the
+> (`eng-rulebook-audit/profiles/data-integrity-profile.md`) and fill them there. Agents: read the
 > project's profile before touching its queue, state machines, or cleanup paths.
 
 **State machines — statuses and one-way doors:**

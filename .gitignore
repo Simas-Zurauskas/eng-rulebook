@@ -1,11 +1,11 @@
-# Profiles are one workspace's project facts — never shared library content.
+# LEGACY deprecation window — profiles moved OUT of the skill (v2).
 #
-# The library master ships `profiles/` empty by design: a profile filled in for one
-# project reads as a *decision* in every other project that inherits it, which is the
-# exact drift the library exists to prevent (see profiles/README.md).
+# A workspace's profiles now live in the WORKSPACE tree at eng-rulebook-audit/profiles/
+# (tracked there on purpose, so facts travel to teammates and CI). This skill carries none.
 #
-# Each adopting workspace fills its own profiles in locally. They stay untracked here
-# so a `git pull` of a library update never clobbers them and a `git push` never
-# publishes one project's session tiers, env tables, ids, or thresholds to another.
+# This stanza stays for one deprecation window: a cloned install from before the relocation
+# may still hold filled skill-local profiles, and without the ignore a reflexive
+# `git add -A` + push would publish that workspace's session tiers, env tables, ids and
+# thresholds to the shared library remote. Migrate (mv profiles/*.md
+# <workspace>/eng-rulebook-audit/profiles/), then this stanza can be dropped in a later release.
 profiles/*
-!profiles/README.md

@@ -398,7 +398,7 @@ scale. Every exception is a dated waiver with an expiry in the register the work
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy the
-> tables into `profiles/ai-features-profile.md` and fill them there. Agents: read the profile before
+> tables into `eng-rulebook-audit/profiles/ai-features-profile.md` and fill them there. Agents: read the profile before
 > touching a model surface — §3, §5, §6, §8 and §9 are not decidable without it.
 >
 > **Minimum viable profile:** *Model surfaces* and *Budgets* before the first surface ships; *Tool

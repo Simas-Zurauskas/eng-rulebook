@@ -17,8 +17,9 @@ _before_ building** instead of findings a review catches afterward.
 - Check a **diff** at merge cadence, or run a full **audit** of the workspace.
 - The mechanizable rules ship as **runnable checks** in [`checks/`](checks/) — semgrep, ESLint,
   tsconfig, CI.
-- **Per-project facts** (session tiers, env tables, thresholds) live in
-  [`profiles/`](profiles/), which is **untracked and empty in the master** — by design.
+- **Per-project facts** (session tiers, env tables, thresholds) live in the **workspace's**
+  `eng-rulebook-audit/profiles/` — next to the audit reports, tracked in the workspace repo —
+  never inside the skill. The skill ships none, by design.
 - A defect **no rule covers** goes back upstream to [`references/_gaps.md`](references/_gaps.md),
   so the next project doesn't rediscover it.
 
@@ -30,8 +31,9 @@ _before_ building** instead of findings a review catches afterward.
 | `/eng-rulebook check [<ref>]` | Check | Diff-scoped verification at merge cadence — the middle between loading a rulebook and auditing a workspace. |
 | `/eng-rulebook audit [<topic>]` | Audit | Audits the workspace against all standards, or one → report in `eng-rulebook-audit/<date>/`. `/eng-rulebook all` is an alias. |
 | `/eng-rulebook profile <topic>` | Profile | Creates this workspace's declared facts for a topic from the rulebook's Appendix A; `status` reports what is missing. |
-| `/eng-rulebook guardrails` | Guard rails | Reconciles the 111 declared guard rails against what this workspace has actually wired. |
+| `/eng-rulebook guardrails` | Guard rails | Reconciles the 113 declared guard rails against what this workspace has actually wired. |
 | `/eng-rulebook contribute` | Contribute | Raises a `library-gap` — a defect no rule covers — against the master. |
+| `/eng-rulebook pulse` | Pulse | Between-audit tripwires: approximate duplication/churn/error-masking metrics vs a baseline (`meta/pulse.mjs`) → `eng-rulebook-audit/pulse/<date>.md`. A crossed tripwire pulls the next audit forward; it is a signal, never a gate. |
 
 ## Topics (the rulebooks)
 
@@ -68,7 +70,7 @@ Three artifacts, three jobs:
 | --- | --- | --- |
 | **Standards** (the rulebooks) | *How we build* — generic, cross-project | [`references/`](references/) |
 | **Audit** | *How we verify* — after the fact | [`audit.md`](audit.md), run by `/eng-rulebook audit` |
-| **Profiles** | *This workspace's current facts* — not run records | [`profiles/`](profiles/) |
+| **Profiles** | *This workspace's current facts* — not run records | the workspace's `eng-rulebook-audit/profiles/` |
 
 - **Standards and the audit are twins.** A rulebook states a property up front; the audit
   checks the code for the same property afterward. An audit finding maps back to the exact
@@ -77,7 +79,8 @@ Three artifacts, three jobs:
   improves and the next project doesn't rediscover it.
 - **Generic rules, project-specific profiles.** A rulebook never names a project. The facts
   that make a generic rule decidable (session tiers, spec globs, state machines, env tables)
-  go in a `profiles/<topic>-profile.md`, copied from that rulebook's **Appendix A** template.
+  go in the workspace's `eng-rulebook-audit/profiles/<topic>-profile.md`, copied from that
+  rulebook's **Appendix A** template.
 - **Guard rails are tracked, not just declared.** Each rulebook ends with CI checks, and each
   carries a **stable id** (`security.GR3`). A workspace records which it has wired in a ledger;
   `/eng-rulebook guardrails` reconciles the two. Without that, "adopted incrementally" and
@@ -109,7 +112,7 @@ guard rails for product code and exempts itself is not credible.
 | `meta/check-rulebook-shape.mjs` | Every cited `§N.M` anchor resolves; every rulebook has the required sections |
 | `meta/check-tables.sh` | The four tables that list the rulebooks agree with what is on disk |
 | `meta/check-version.sh` | `VERSION` is sane, every rulebook has a `Rev:`, changed rulebooks appear in the changelog |
-| `meta/guard-rails.mjs` | Enumerates the 111 declared rails; reconciles them against a workspace's ledger |
+| `meta/guard-rails.mjs` | Enumerates the 113 declared rails; reconciles them against a workspace's ledger |
 
 ## How a new workspace adopts this
 
@@ -125,29 +128,44 @@ guard rails for product code and exempts itself is not credible.
 
    Never scatter copies of individual rulebooks into repos or prompts — that recreates the drift
    the library exists to prevent.
-2. **Check `profiles/` is empty.** `.gitignore` untracks it, so a clone arrives empty and
-   your own profiles never push back — but if you adopted by copying a *directory* rather
-   than cloning, delete any `<topic>-profile.md` you inherited. They are the previous
-   workspace's facts and they read as decisions yours never made. Keep the README.
-3. **Fill in profiles** with `/eng-rulebook profile <topic>` as decisions are made;
-   `/eng-rulebook profile status` reports what is still missing.
+2. **Check the skill carries no profiles.** Profiles are workspace facts and live in the
+   workspace tree, not the skill — if the copy you adopted contains a `profiles/` directory
+   with `<topic>-profile.md` files, they are a previous workspace's facts (or your own,
+   pre-relocation): move yours to `eng-rulebook-audit/profiles/` and delete the rest. They
+   read as decisions your project never made.
+3. **Fill in profiles** with `/eng-rulebook profile <topic>` as decisions are made — they are
+   written to the workspace's `eng-rulebook-audit/profiles/` and **tracked in the workspace
+   repo**, so teammates and CI see the same facts; `/eng-rulebook profile status` reports
+   what is still missing. **Fill order:** security, config-and-environment, data-integrity
+   and testing first (they carry most profile-dependent rules); the rest when their lane is
+   first touched.
 4. **Wire the guard rails** incrementally — start from [`checks/`](checks/) — and record what you
    wired, so `/eng-rulebook guardrails` can tell adopted-partly from adopted-not-at-all.
 5. **Audit periodically** with `/eng-rulebook audit`; a finding that recurs across runs is either
    a missing guard rail or a `library-gap` — fix the standard, not just the instance.
 
-## Profiles ship empty — by design
+## Profiles live in the workspace — by design
 
-This repository is the **library master**: generic rulebooks and nothing else. `profiles/`
-holds only its README here, and `.gitignore` keeps it that way — profiles are untracked, so
-a filled-in profile lives and stays in the workspace that filled it.
+This repository is the **library master**: generic rulebooks and nothing else. Profiles live
+in the adopting **workspace's** tree at `eng-rulebook-audit/profiles/<topic>-profile.md` —
+beside the audit reports, tracked in the workspace repo — never inside the skill folder.
 
-That is deliberate, not an omission. A profile is one project's declared facts (session
-tiers, env tables, spec globs, coverage thresholds, store ids). Shipped inside the library,
-it arrives in the next project as a **decision that project never made** — the "stale profile
-reads as a decision" failure in [`profiles/README.md`](profiles/README.md), propagated by
-distribution. Until a workspace writes its own, rules needing project facts run on the
-generic masters and the agent says so.
+That is deliberate, not an omission, and it does two jobs at once. A profile is one project's
+declared facts (session tiers, env tables, spec globs, coverage thresholds, store ids).
+Shipped inside the library, it would arrive in the next project as a **decision that project
+never made** — location outside the skill prevents that by construction. And because the
+profile sits in the workspace repo, it **travels with the project**: teammates and CI read
+the same declared facts, and a skill update can never clobber them. One non-topic file lives
+there too: `guard-rails.md`, the workspace's ledger of which declared guard rails are wired
+(seed it with `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template`). Cells a
+human must decide are written `DECIDE: <question>`, never guessed; each profile's header
+stamps the library `VERSION`, the master's `Rev:`, the date, and the commit its facts were
+verified against — a stale profile is worse than a missing one, because it reads as a
+decision. Until a workspace writes its own, rules needing project facts run on the generic
+masters and the agent says so.
+
+*Migrating an install from before this convention: move
+`.claude/skills/eng-rulebook/profiles/*.md` to `eng-rulebook-audit/profiles/`.*
 
 ## Versioning
 
@@ -176,10 +194,18 @@ eng-rulebook/
     README.md          #   what is here, what is deliberately not, and how it was validated
     semgrep/ eslint/ tsconfig/ ci/
   meta/                # the library's own gates
-    check-rulebook-shape.mjs · check-tables.sh · check-version.sh · guard-rails.mjs
-  profiles/            # the adopting workspace's own facts — untracked, empty in the master
-    README.md
-    <topic>-profile.md #   created on demand via /eng-rulebook profile <topic>
+    check-rulebook-shape.mjs · check-tables.sh · check-version.sh · guard-rails.mjs · pulse.mjs
+```
+
+Profiles are NOT in this tree — they live in the adopting workspace, beside the audit output:
+
+```
+<workspace root>/
+  eng-rulebook-audit/
+    <date>/              # audit reports (see audit.md)
+    profiles/            # the workspace's own facts — tracked in the workspace repo
+      <topic>-profile.md #   created on demand via /eng-rulebook profile <topic>
+      guard-rails.md     #   the wired-rails ledger (guard-rails.mjs --template)
 ```
 
 ## How the skill loads
