@@ -32,6 +32,52 @@ reordering would not close it.
 
 ---
 
+## v5 — 2026-08-17
+
+**`/eng-rulebook check` now leaves a record.** Until now it reported to the session and nothing
+survived the run: there was no way to tell *"we checked and it was clean"* from *"nobody
+checked"*, and a finding raised at merge time and shipped anyway was invisible to the next audit.
+Runs are now recorded under `<home>/check-runs/`, a sibling of `audits/` — grouped apart, because
+a per-diff review and a quarterly whole-workspace assessment are different kinds of artifact with
+different lifespans, and merging them buries the handful that matter under hundreds that say
+"nothing found".
+
+**ADDS** · Touches: SKILL.md, audit.md, README.md, references/README.md
+A check gains a required step it did not have. No rulebook changed — no rule text, `§` number,
+`Rev:` or `## Guard rails` section moved.
+
+- **Layout.** `check-runs/<YYYY-QQ>.md` is a ledger with **one row per run, always written** —
+  including clean runs and `trivial` tier, because a ledger holding only the bad runs cannot prove
+  a check happened. A **detail file** `<YYYY-MM-DD>-<short-sha>.md` is written only when the run
+  found something at **Medium or above**, or anything at `elevated` tier. Delta mode resolves only
+  prior Critical/High, so everything it consumes always has a file.
+- **The ledger row carries the library `VERSION` and each loaded master's `Rev:`.** Not
+  bookkeeping: delta mode resolves `rule-changed` by comparing exactly those, and an unchanged
+  `Rev:` is what lets it skip the CHANGELOG walk. A row without them is unreadable a release later.
+- **The cheapness claim was amended, not overridden.** § Check mode previously listed "no report
+  directory" among the things that make the mode cheap. That conflated the census/coverage/shard
+  machinery — which genuinely costs sub-agent dispatches — with writing a file, which costs
+  nothing. The clause is gone; the rest of the sentence stands.
+- **Redaction is now a hard control in check mode.** Check findings reuse the audit's finding
+  format, which quotes code with `path:line`. Once those files are committed to a shared docs repo
+  and outlive the run, that is the same condition under which `audit.md` prime directive 6 stops
+  being hygiene. Step 8 states the masking obligation explicitly; check mode had none before,
+  because nothing persisted.
+- **`audit` delta mode reads the trail.** A Critical/High finding raised by a check and still
+  present resolves as `still-open`, not as new — through the same four labels in the same order.
+  A source was added, not a reordering. A record nothing ever reads would have been a write-only
+  artifact, which is what `pulse` was deleted for in v4.
+- **The name is `check-runs/`, deliberately not `checks/`.** The skill already has a `checks/`
+  directory holding the mechanizable guard rails as runnable artifacts. Two directories one path
+  segment apart with opposite meanings is a trap an adopting workspace would hit immediately.
+
+**Retention, honestly.** Detail files older than the last completed audit may be deleted (the
+audit re-examines the whole workspace and its report is the durable record); ledger files stay.
+Always a human's act — the library never removes a workspace's files. And note what deleting
+cannot do: these files are tracked, so removal clears the working tree, not the history. Retention
+here is tidiness, not erasure, which is why the redaction rule above is the control that actually
+bounds what reaches the repo.
+
 ## v4 — 2026-08-17
 
 **The mode surface drops from seven invocations to four:** `<topic>`, `check`, `profile`,

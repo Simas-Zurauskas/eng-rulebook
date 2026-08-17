@@ -12,12 +12,13 @@
 
 ## The model
 
-Three artifacts, three jobs — the same layering the comment standard is built on:
+Four artifacts, four jobs — the same layering the comment standard is built on:
 
 | Artifact | Job | Lives |
 | --- | --- | --- |
 | **Standards** (this library) | How we build — generic, cross-project | inside the `eng-rulebook` skill (`references/`), routed by its `SKILL.md` |
-| **Audit** | How we verify — after the fact | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to `<home>/audits/<date>/` |
+| **Audit** | How we verify — after the fact, whole workspace | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to `<home>/audits/<YYYY-MM-DD>/` |
+| **Check runs** | What we verified at merge time — one record per diff | `/eng-rulebook check` — a ledger row per run in `<home>/check-runs/`, plus a detail file when the run found something |
 | **Project profiles** | The workspace's current facts (not run records) | `<home>/profiles/<topic>-profile.md` — next to the audit reports, **tracked in the project's wiki repo** so the facts travel to teammates (a CI job in a code repo must check that repo out) |
 
 Standards and the audit are twins in **one skill**: `/eng-rulebook <topic>` loads a rulebook
@@ -47,7 +48,7 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
 3. **Wire the guard rails.** Every standard ends with CI checks that make it enforceable
    rather than aspirational. Adopt them incrementally; each names what it catches.
 4. **Audit against it.** Run `/eng-rulebook audit` periodically (reports land in
-   `<home>/audits/<date>/`); a finding that recurs across runs is either a missing guard
+   `<home>/audits/<YYYY-MM-DD>/`, beside the per-diff trail in `<home>/check-runs/`); a finding that recurs across runs is either a missing guard
    rail or a `library-gap` — fix the standard, not just the instance.
 
 ## The standards

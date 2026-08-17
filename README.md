@@ -28,7 +28,7 @@ _before_ building** instead of findings a review catches afterward.
 | Command | Mode | What it does |
 | --- | --- | --- |
 | `/eng-rulebook <topic>` | Build-time load | Reads the matching rulebook **before you write**, e.g. `/eng-rulebook security`. Also auto-triggers when you start work on a covered area. |
-| `/eng-rulebook check [<ref>]` | Check | Diff-scoped verification at merge cadence — the middle between loading a rulebook and auditing a workspace. |
+| `/eng-rulebook check [<ref>]` | Check | Diff-scoped verification at merge cadence — the middle between loading a rulebook and auditing a workspace. Each run is recorded in `<home>/check-runs/`. |
 | `/eng-rulebook audit [<topic>]` | Audit | Audits the workspace against all standards, or one → report in `<home>/audits/<date>/`. `/eng-rulebook all` is an alias. |
 | `/eng-rulebook profile <topic>` | Profile | Creates this workspace's declared facts for a topic from the rulebook's Appendix A; `status` reports what is missing. |
 
@@ -61,12 +61,13 @@ authoritative. [`references/README.md`](references/README.md) is a scope index a
 
 ## Key concepts
 
-Three artifacts, three jobs:
+Four artifacts, four jobs:
 
 | Artifact | Job | Lives |
 | --- | --- | --- |
 | **Standards** (the rulebooks) | *How we build* — generic, cross-project | [`references/`](references/) |
-| **Audit** | *How we verify* — after the fact | [`audit.md`](audit.md), run by `/eng-rulebook audit` |
+| **Audit** | *How we verify* — after the fact, whole workspace | [`audit.md`](audit.md), run by `/eng-rulebook audit` → `<home>/audits/<date>/` |
+| **Check runs** | *What we verified at merge time* — one record per diff | `<home>/check-runs/` — a ledger row per run, a detail file when there were findings |
 | **Profiles** | *This workspace's current facts* — not run records | `<home>/profiles/` — normally `wiki-{project}/eng-rulebook/profiles/` |
 
 - **Standards and the audit are twins.** A rulebook states a property up front; the audit
@@ -211,7 +212,10 @@ wiki-{project}/            # the project's docs repo — its own git repo
     profiles/              #   the workspace's own facts — tracked here
       <topic>-profile.md   #     created on demand via /eng-rulebook profile <topic>
       guard-rails.md       #     the wired-rails ledger (guard-rails.mjs --template)
-    audits/<date>/         #   audit reports (see audit.md)
+    audits/<YYYY-MM-DD>/   #   audit reports (see audit.md)
+    check-runs/            #   the merge-cadence trail (SKILL.md § Check mode step 8)
+      <YYYY-QQ>.md         #     ledger: one row per check run, always written
+      <YYYY-MM-DD>-<sha>.md #     detail, only for runs with findings
 ```
 
 ## How the skill loads
