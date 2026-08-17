@@ -1,6 +1,6 @@
 ---
 name: eng-rulebook
-description: Engineering standards — 16 generic rulebooks loaded before building or checked against code. BUILD-TIME load (default), for nontrivial work on: API endpoints/wire contracts, auth/sessions/uploads, personal data/retention/deletion, jobs/queues/paid external calls, env or deploy config, tests, logging/metrics/alarms, dependencies/CI/build integrity, queries/indexes/caching, web client (XSS, CSRF, tokens, accessibility), mobile app, LLM or agent features, repo scaffolding, TypeScript strictness, code comments — or when the user mentions standards, guidelines or house rules; invoke /eng-rulebook <topic>. Also: /eng-rulebook check [<ref>] diff-scoped review at merge cadence; /eng-rulebook profile <topic> declare workspace facts; /eng-rulebook contribute raise a library-gap; /eng-rulebook pulse between-audit structural tripwires (duplication, churn, error-masking vs a baseline); /eng-rulebook audit [<topic>] multi-agent verified codebase audit writing a report — use for a quality or security audit, full review, or checking code against the standards.
+description: Engineering standards — 16 generic rulebooks loaded before building or checked against code. BUILD-TIME load (default), for nontrivial work on: API endpoints/wire contracts, auth/sessions/uploads, personal data/retention/deletion, jobs/queues/paid external calls, env or deploy config, tests, logging/metrics/alarms, dependencies/CI/build integrity, queries/indexes/caching, web client (XSS, CSRF, tokens, accessibility), mobile app, LLM or agent features, repo scaffolding, TypeScript strictness, code comments — or when the user mentions standards, guidelines or house rules; invoke /eng-rulebook <topic>. Also: /eng-rulebook check [<ref>] diff-scoped review at merge cadence; /eng-rulebook profile <topic> declare workspace facts; /eng-rulebook audit [<topic>] multi-agent verified codebase audit writing a report — use for a quality or security audit, full review, or checking code against the standards.
 ---
 
 # Engineering standards router
@@ -16,9 +16,6 @@ for defects no rule covers). These codify the patterns that survived real audits
 | --- | --- | --- |
 | `/eng-rulebook <topic>` (e.g. `security`), or auto-triggered by build/review work | **Build-time load** (default) | Read the matching master(s) + profile **before writing**, so the rules are defaults, not after-the-fact findings. Follow "How to use" below. |
 | `/eng-rulebook check [<ref>]` | **Check** (diff-scoped) | Verify a change against the standards it touches, at merge cadence. Follow "Check mode" below. |
-| `/eng-rulebook guardrails` | **Guard rails** | Reconcile declared rails against this workspace's ledger (`<home>/profiles/guard-rails.md` — see § Where eng-rulebook writes): from the **workspace root**, `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger`. Seed one with `--template`. A rail claimed wired that cannot be located is a finding at the rule's severity. |
-| `/eng-rulebook contribute` | **Contribute** | Raise a `library-gap` against the master. Check it against the intake bar in `references/_gaps.md`, then add a row there. |
-| `/eng-rulebook pulse` | **Pulse** | Between-audit structural tripwires: from the workspace root, `node .claude/skills/eng-rulebook/meta/pulse.mjs` (`--baseline` to set the reference point). Approximate duplication/churn/error-masking metrics vs baseline, written to `<home>/pulse/<date>.md` (§ Where eng-rulebook writes). A crossed tripwire is a reason to pull `/eng-rulebook audit` forward — a signal, never a finding and never a gate. |
 | `/eng-rulebook profile <topic>` · `/eng-rulebook profile status` | **Profile** | Create or review this workspace's declared facts for a topic. Follow "Profile mode" below. |
 | `/eng-rulebook audit`, `/eng-rulebook audit <topic>`, `/eng-rulebook all` | **Audit** | Run the multi-agent, coverage-gated, independently-verified audit of the codebase against the standards; write a report to `<home>/audits/<date>/` (§ Where eng-rulebook writes). **Follow [`audit.md`](audit.md) — read it in full and execute it.** `audit` = all standards; `audit <topic>` = one standard's criteria; `all` = alias for `audit`. |
 
@@ -62,7 +59,6 @@ still used, and eng-rulebook never runs `git init` on the project's behalf.
     <topic>-profile.md       # this workspace's declared facts
     guard-rails.md           # the wired-rails ledger
   audits/<YYYY-MM-DD>/       # one report directory per audit run
-  pulse/<date>.md            # + baseline.json
 ```
 
 **Why the wiki.** The wiki folder is its own git repo and the project's one shared artifact,
@@ -271,7 +267,7 @@ follow [`audit.md`](audit.md) — the `/eng-rulebook audit` procedure.
 - **The master is the upstream, and gaps travel back to it.** A `library-gap` recorded only in a
   workspace's report folder is a gap the library never learns — it sits next to that workspace's
   *copy*, and the next project rediscovers it. Raise it against the master via
-  `/eng-rulebook contribute`; the intake bar and backlog are `references/_gaps.md`.
+  adding a row to `references/_gaps.md`, whose four-point intake bar is the gate.
 - Standards disagree with a project's established convention → surface the conflict to the
   user; don't silently pick either side.
 - **Edited anything under `references/`? Run the library's own gates before you finish:**

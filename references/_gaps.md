@@ -13,7 +13,7 @@ rediscovered in the next workspace, and the next — which is precisely the drif
 exists to prevent, running in the one direction nobody instrumented.
 
 **The master is the upstream.** A gap recorded only in a workspace is a gap the library never
-learns. Raise it here (`/eng-rulebook contribute`), against the master.
+learns. Add a row here, against the master.
 
 **Two upstream sources feed this file.** An **audit** emits `library-gaps.md` in its report
 (`audit.md` § Finding format) — transcribe those rows here. And a delivery process's post-release

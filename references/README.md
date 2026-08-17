@@ -87,7 +87,7 @@ them from the standards set by that prefix:
 | File | Holds |
 | --- | --- |
 | [`_authoring.md`](_authoring.md) | The contract every rulebook is written to, and the lane index (authoritative on which file owns a subject) |
-| [`_gaps.md`](_gaps.md) | The inbound backlog: defects **no** rule covers, with a four-point intake bar. Raised via `/eng-rulebook contribute` |
+| [`_gaps.md`](_gaps.md) | The inbound backlog: defects **no** rule covers, with a four-point intake bar. Add a row to raise one |
 | [`_coverage-asvs.md`](_coverage-asvs.md) | Which ASVS 5.0 chapters this library states a rule for — the delta that makes the §1 assurance-target declaration falsifiable |
 
 ## The delivery seam — this library owns WHAT, a delivery process owns WHEN

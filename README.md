@@ -31,9 +31,6 @@ _before_ building** instead of findings a review catches afterward.
 | `/eng-rulebook check [<ref>]` | Check | Diff-scoped verification at merge cadence — the middle between loading a rulebook and auditing a workspace. |
 | `/eng-rulebook audit [<topic>]` | Audit | Audits the workspace against all standards, or one → report in `<home>/audits/<date>/`. `/eng-rulebook all` is an alias. |
 | `/eng-rulebook profile <topic>` | Profile | Creates this workspace's declared facts for a topic from the rulebook's Appendix A; `status` reports what is missing. |
-| `/eng-rulebook guardrails` | Guard rails | Reconciles the 113 declared guard rails against what this workspace has actually wired. |
-| `/eng-rulebook contribute` | Contribute | Raises a `library-gap` — a defect no rule covers — against the master. |
-| `/eng-rulebook pulse` | Pulse | Between-audit tripwires: approximate duplication/churn/error-masking metrics vs a baseline (`meta/pulse.mjs`) → `<home>/pulse/<date>.md`. A crossed tripwire pulls the next audit forward; it is a signal, never a gate. |
 
 ## Topics (the rulebooks)
 
@@ -75,15 +72,16 @@ Three artifacts, three jobs:
 - **Standards and the audit are twins.** A rulebook states a property up front; the audit
   checks the code for the same property afterward. An audit finding maps back to the exact
   rule it violated (its `Standard:` field). A real defect that **no** rule covers is a
-  `library-gap` — raised against the master via `/eng-rulebook contribute`, so the library
+  `library-gap` — raised against the master by adding a row to
+  [`references/_gaps.md`](references/_gaps.md), so the library
   improves and the next project doesn't rediscover it.
 - **Generic rules, project-specific profiles.** A rulebook never names a project. The facts
   that make a generic rule decidable (session tiers, spec globs, state machines, env tables)
   go in `<home>/profiles/<topic>-profile.md`, copied from that
   rulebook's **Appendix A** template.
 - **Guard rails are tracked, not just declared.** Each rulebook ends with CI checks, and each
-  carries a **stable id** (`security.GR3`). A workspace records which it has wired in a ledger;
-  `/eng-rulebook guardrails` reconciles the two. Without that, "adopted incrementally" and
+  carries a **stable id** (`security.GR3`). A workspace records which it has wired in a ledger,
+  and `audit` reconciles the two in its Phase 2b. Without that, "adopted incrementally" and
   "adopted nothing" produce the same audit.
 - **Empty profile = honest.** A missing profile means "not yet declared" — the agent proceeds
   on the generic master and says so. A **stale** profile is worse than a missing one, because
@@ -140,7 +138,10 @@ guard rails for product code and exempts itself is not credible.
    and testing first (they carry most profile-dependent rules); the rest when their lane is
    first touched.
 4. **Wire the guard rails** incrementally — start from [`checks/`](checks/) — and record what you
-   wired, so `/eng-rulebook guardrails` can tell adopted-partly from adopted-not-at-all.
+   wired in the ledger, so the audit can tell adopted-partly from adopted-not-at-all. Reconcile
+   at any time with `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger` from the
+   workspace root (`--template` seeds a ledger); `/eng-rulebook audit` runs the same check in its
+   Phase 2b.
 5. **Audit periodically** with `/eng-rulebook audit`; a finding that recurs across runs is either
    a missing guard rail or a `library-gap` — fix the standard, not just the instance.
 
@@ -196,7 +197,7 @@ eng-rulebook/
     README.md          #   what is here, what is deliberately not, and how it was validated
     semgrep/ eslint/ tsconfig/ ci/
   meta/                # the library's own gates
-    check-rulebook-shape.mjs · check-tables.sh · check-version.sh · guard-rails.mjs · pulse.mjs
+    check-rulebook-shape.mjs · check-tables.sh · check-version.sh · guard-rails.mjs
 ```
 
 Profiles are NOT in this tree — they live in the adopting workspace's `<home>`, beside the
@@ -211,7 +212,6 @@ wiki-{project}/            # the project's docs repo — its own git repo
       <topic>-profile.md   #     created on demand via /eng-rulebook profile <topic>
       guard-rails.md       #     the wired-rails ledger (guard-rails.mjs --template)
     audits/<date>/         #   audit reports (see audit.md)
-    pulse/<date>.md        #   between-audit tripwires (+ baseline.json)
 ```
 
 ## How the skill loads

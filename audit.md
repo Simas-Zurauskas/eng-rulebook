@@ -29,8 +29,8 @@ if absent, and **if `<home>/.gitignore` does not exist, create it** with exactly
 audits/*/_work/
 ```
 
-Audit is the only mode that produces `_work/`, and the scripts that would otherwise seed that
-file (`meta/pulse.mjs`, `meta/guard-rails.mjs --template`) may never have run here. Never touch
+Audit is the only mode that produces `_work/`, and the script that would otherwise seed that
+file (`meta/guard-rails.mjs --template`) may never have run here. Never touch
 an existing `<home>/.gitignore` — see the Retention note below. **A report written under a wiki home is committed to a shared docs repo and outlives
 the run, so prime directive 6's redaction is a hard control there, not hygiene** — the same
 condition the Retention note below states for `_work/`. The report combines three lenses in one
@@ -110,7 +110,10 @@ Every rulebook declares guard rails; adoption is incremental by design. Without 
 "adopted incrementally" and "adopted nothing" produce the same audit — and the report reads as
 though the rails were doing work.
 
-- Run `node meta/guard-rails.mjs --ledger`. It reports declared-but-unrecorded rails and recorded
+- Run `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger` **from the workspace root**
+  (this procedure's working directory — the path is skill-relative and will not resolve from there,
+  and running it from inside the skill folder resolves `<home>` against the wrong directory, which
+  reports every rail as unwired). It reports declared-but-unrecorded rails and recorded
   rails whose rule no longer exists — the second is the signal that a rule was removed while a
   workspace still believes it is enforced. Rails are cited by stable id (`security.GR3`), and
   findings in this phase name that id.
@@ -167,7 +170,7 @@ Run verification **as findings land**, not as a final batch — an interrupted r
 **An independent verifier sub-agent is the only thing that promotes a finding from lead to reported.** The discovering auditor's own confidence does not count, and a grep sweep or a re-read by the orchestrator is **not** a substitute — grep confirms the token pattern you thought to search for; the verifier reproduces (or refutes) the reasoning from the code, including the guard upstream or the index in another file that makes a plausible finding wrong. Narrow verification breadth under budget pressure by cutting auditor breadth first (fewer leads), never by downgrading the verifier to a self-check.
 
 - For every Critical/High/Medium Lens-A finding: an independent verifier receives **only the claim and its citations** (not the discovering auditor's reasoning) and attempts to **refute** it against the code. Verdicts: `CONFIRMED` (reproduced the reasoning from source) / `REFUTED` (drop, or downgrade with a note on what the finder missed) / `UNCLEAR` (keep, labeled `Plausible`). Criticals get two independent verifiers. A finding that reaches the report carries its verdict.
-- **Verify the `Standard:` mapping too**, not just the defect: confirm the cited `references/<file> §rule` actually says what the finding claims, so a real bug isn't filed under the wrong rule (or mislabeled `library-gap` when a rule does cover it). A genuine `library-gap` — defect real, no rule covers it — is recorded as a change request against this skill's references in the report's systemic-themes section **and written to `library-gaps.md` in the report root**, one row per gap in the column order of `references/_gaps.md` so it can be transcribed upstream without re-deriving it. Say so in the report's closing: these gaps are against the workspace's *copy* of the library and reach the master only when someone raises them there (`/eng-rulebook contribute`).
+- **Verify the `Standard:` mapping too**, not just the defect: confirm the cited `references/<file> §rule` actually says what the finding claims, so a real bug isn't filed under the wrong rule (or mislabeled `library-gap` when a rule does cover it). A genuine `library-gap` — defect real, no rule covers it — is recorded as a change request against this skill's references in the report's systemic-themes section **and written to `library-gaps.md` in the report root**, one row per gap in the column order of `references/_gaps.md` so it can be transcribed upstream without re-deriving it. Say so in the report's closing: these gaps are against the workspace's *copy* of the library and reach the master only when someone adds a row to `references/_gaps.md` there.
 - Lens-B counting claims ("repeated in ~20 controllers", "pasted into 12 files") are verified by grep — record the actual count.
 - **Calibration:** record per shard how many claims were checked-and-confirmed versus flagged, so a thorough audit is distinguishable from a shallow one that only inspected a few files. A shard that returns findings but shows almost no confirmed-clean claims is a suspect-shallow pass — re-dispatch it once.
 - Independent rediscovery by multiple auditors is a confidence signal — record "flagged by N auditors" during dedup.

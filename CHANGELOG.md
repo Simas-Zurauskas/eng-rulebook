@@ -32,6 +32,47 @@ reordering would not close it.
 
 ---
 
+## v4 — 2026-08-17
+
+**The mode surface drops from seven invocations to four:** `<topic>`, `check`, `profile`,
+`audit`. Seven front doors on a router is itself a cost, and three of them had the weakest claim
+on a slot — two were already invoked automatically by `audit`, and one produced no obligation at
+all.
+
+**EDITORIAL** · Touches: _gaps.md
+**No obligation changes.** No rule text, `§` number or `Rev:` moved, and no rulebook was edited —
+the one `references/` change is a prose line in `_gaps.md` naming a removed invocation. The class
+is EDITORIAL rather than RELAXES deliberately: RELAXES prescribes resolving a prior finding as
+`rule-changed`, and no finding ever cited any of these three (`pulse` was "a signal, never a
+finding and never a gate"). A RELAXES entry here would be inert but misleading to `audit.md`'s
+delta pass, which walks the CHANGELOG for RELAXES entries touching a cited rulebook.
+
+**Removed: `/eng-rulebook pulse`, and `meta/pulse.mjs` with it.** It produced no obligation,
+decided nothing, gated nothing, and no other mode read its output. Its whole product was an
+argument about *when a human should schedule the next audit* — and `_gaps.md` bar #4, the bar
+this library applies to every candidate rule, says a workflow obligation belongs to the delivery
+process, not to a standard. The metrics were candid about themselves ("approximate by
+construction … trend, not truth"): 173 lines approximating what `jscpd` and `git log --numstat`
+already do. **This re-opens the "nothing between `check` and `audit`" gap that v2 closed.** The
+replacement is cadence, not an instrument: `check` at merge time, `audit` quarterly with its
+trigger list. A team that wants a monthly number should run those tools directly.
+
+**Demoted, not removed — both capabilities are unchanged:**
+
+- **Guard-rail reconciliation.** `/eng-rulebook guardrails` is gone as an invocation;
+  `meta/guard-rails.mjs` is untouched and `audit.md` Phase 2b still runs it, where it remains the
+  phase's highest-yield check. Run it directly any time with
+  `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger` (`--template` seeds a ledger).
+  The 113 declared rails, their stable `[lane.GRn]` ids, the required `## Guard rails` section in
+  each rulebook, and the workspace ledger are all unaffected.
+- **Raising a library-gap.** `/eng-rulebook contribute` is gone as an invocation; it never had
+  any code. Add a row to `references/_gaps.md`, which documents its own four-point intake bar and
+  procedure in full. The backlog and its 12 rows are unchanged.
+
+**If you had pulse output.** An existing `<home>/pulse/` directory and its `baseline.json` are
+now orphaned. The library does not reach into a workspace to delete anything — remove them by
+hand when convenient.
+
 ## v3 — 2026-08-17
 
 **Profiles, audit reports and pulse output move into the project's wiki repo.** v2 put them at
