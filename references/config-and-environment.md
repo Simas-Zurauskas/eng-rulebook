@@ -330,7 +330,7 @@ CI checks that make this standard enforceable rather than aspirational:
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
-> Copy the tables into the project's profile (e.g. `eng-rulebook-audit/profiles/config-profile.md`)
+> Copy the tables into the project's profile (e.g. `<home>/profiles/config-profile.md`)
 > and fill them there. Agents: read the profile before adding or gating on config —
 > §4, §6.4, and §8 are not decidable without it.
 

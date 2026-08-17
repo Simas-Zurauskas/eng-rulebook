@@ -378,7 +378,7 @@ most are a few lines of shell:
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
-> Copy the tables into the project's profile (`eng-rulebook-audit/profiles/tooling-profile.md`)
+> Copy the tables into the project's profile (`<home>/profiles/tooling-profile.md`)
 > and fill them there. Agents: read the profile before classifying repos, editing configs,
 > or touching generated directories.
 

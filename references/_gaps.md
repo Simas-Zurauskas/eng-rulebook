@@ -7,7 +7,7 @@ A **library-gap** is a real defect that **no rule in this library covers**. The 
 from a diff (`SKILL.md` § After writing), and any reviewer can raise one.
 
 The problem this file solves: every other destination for a gap is **downstream**. An audit
-report lands in `eng-rulebook-audit/<date>/` inside the *adopting workspace*, next to that
+report lands in `<home>/audits/<date>/` inside the *adopting workspace*, next to that
 workspace's **copy** of the library. Nothing carries it back to the master, so the same gap is
 rediscovered in the next workspace, and the next — which is precisely the drift the library
 exists to prevent, running in the one direction nobody instrumented.

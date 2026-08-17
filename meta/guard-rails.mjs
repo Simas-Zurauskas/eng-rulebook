@@ -12,21 +12,49 @@
 //
 // Usage (run from the WORKSPACE ROOT — the ledger lives beside the audit reports):
 //   node .claude/skills/eng-rulebook/meta/guard-rails.mjs              list every declared rail
-//   node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger     reconcile against eng-rulebook-audit/profiles/guard-rails.md
+//   node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger     reconcile against <home>/profiles/guard-rails.md
 //   node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template   print a ledger seeded with every declared rail
+//   ... --root <dir>                                                   name the home explicitly
+//
+// <home> resolves per meta/home.mjs (SKILL.md § Where eng-rulebook writes): the project wiki
+// when there is one, else eng-rulebook-audit/ under the current directory.
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs'
-import { join, dirname, basename } from 'node:path'
+import { join, dirname, basename, relative } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { resolveHome, ensureHome, legacyProfileDirs, HomeAmbiguousError, HomeRootError } from './home.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const REF = join(ROOT, 'references')
-// The ledger is a WORKSPACE fact: it lives in the workspace tree at
-// eng-rulebook-audit/profiles/guard-rails.md, resolved from the current working directory.
-// The skill-local profiles/ path is the pre-relocation legacy location — still read, with a
-// migration hint, so an old install keeps working.
-const LEDGER = join(process.cwd(), 'eng-rulebook-audit', 'profiles', 'guard-rails.md')
-const LEGACY_LEDGER = join(ROOT, 'profiles', 'guard-rails.md')
+
+// The ledger is a WORKSPACE fact, not a skill file — so the home is resolved LAZILY, only by
+// the modes that need it. Default list mode enumerates the library's own rulebooks and touches
+// no workspace at all; making it fail because a workspace holds two wikis would be absurd.
+let _home = null
+function home() {
+  if (_home) return _home
+  try {
+    const resolved = resolveHome()
+    // stderr, not stdout: --template's stdout is redirected straight into the committed ledger,
+    // so a NOTE on stdout lands as that file's first line.
+    for (const w of resolved.warnings) console.error('NOTE: ' + w)
+    _home = resolved.home
+  } catch (err) {
+    if (err instanceof HomeAmbiguousError || err instanceof HomeRootError) {
+      console.error(err.message)
+      process.exit(2)
+    }
+    throw err
+  }
+  return _home
+}
+const ledgerPathFor = () => join(home(), 'profiles', 'guard-rails.md')
+// The --template body is committed to the project's repo, so it must not embed one developer's
+// absolute paths. Terminal hints below stay absolute — there, unambiguous beats portable.
+const ledgerRel = () => relative(process.cwd(), ledgerPathFor()) || ledgerPathFor()
+// Pre-v3 locations — the workspace-root fallback tree, then the skill-local folder from before
+// profiles left the skill at all. Both are still READ, with a migration hint; never written.
+const legacyLedgers = () => legacyProfileDirs({ skillRoot: ROOT }).map(d => join(d, 'guard-rails.md'))
 
 const standards = readdirSync(REF)
   .filter(f => f.endsWith('.md') && f !== 'README.md' && !f.startsWith('_'))
@@ -61,14 +89,23 @@ const all = standards.flatMap(f => railsOf(f).map(r => ({ ...r, file: f, lane: b
 const withId = all.filter(r => r.id)
 const withoutId = all.filter(r => !r.id)
 
-const mode = process.argv[2]
+// Positional-only parsing would drop the mode whenever --root came first.
+const mode = process.argv.slice(2).find(a => a === '--template' || a === '--ledger')
 
 if (mode === '--template') {
+  // Seeding operation: make sure the home (and its .gitignore) exists before the caller
+  // redirects this output into it. --ledger deliberately does NOT, being a read-only check.
+  try {
+    ensureHome(home())
+  } catch (err) {
+    if (err instanceof HomeRootError) { console.error(err.message); process.exit(2) }
+    throw err
+  }
   console.log(`# Guard-rail ledger — this workspace
 
 > Which declared guard rails are actually wired **here**. Generated from the library's rulebooks
 > with \`node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template\` (run from the
-> workspace root; lives at \`eng-rulebook-audit/profiles/guard-rails.md\`); keep it current by hand.
+> workspace root; lives at \`${ledgerRel()}\`); keep it current by hand.
 >
 > "Adopt incrementally" is only honest if the increment is recorded. An unrecorded rail is
 > indistinguishable from an unwired one, which is the half-adopted-mechanism failure the library
@@ -88,18 +125,29 @@ if (mode === '--template') {
 }
 
 if (mode === '--ledger') {
+  const LEDGER = ledgerPathFor()
   let ledgerPath = LEDGER
-  if (!existsSync(ledgerPath) && existsSync(LEGACY_LEDGER)) {
-    ledgerPath = LEGACY_LEDGER
-    console.log('NOTE: using the legacy skill-local ledger (profiles/guard-rails.md).')
-    console.log('Migrate it:  mv "' + LEGACY_LEDGER + '" eng-rulebook-audit/profiles/guard-rails.md')
-    console.log('')
+  if (existsSync(ledgerPath)) {
+    // Both locations populated: the home wins, but say so. Merging two half-filled ledgers
+    // would produce a record of decisions nobody made.
+    const dupes = legacyLedgers().filter(p => existsSync(p))
+    for (const d of dupes) {
+      console.error('NOTE: a legacy ledger also exists at ' + d + ' — using ' + LEDGER + '.')
+      console.error('Remove the legacy copy once you have merged anything you still need.')
+    }
+  } else {
+    const legacy = legacyLedgers().find(p => existsSync(p))
+    if (legacy) {
+      ledgerPath = legacy
+      console.error('NOTE: using a legacy ledger location (' + legacy + ').')
+      console.error('Migrate it:  mv "' + legacy + '" "' + LEDGER + '"')
+    }
   }
   if (!existsSync(ledgerPath)) {
-    console.log('No eng-rulebook-audit/profiles/guard-rails.md under the current directory')
+    console.log('No guard-rail ledger at ' + LEDGER)
     console.log('(run from the workspace root — the ledger lives beside the audit reports).')
     console.log(`${all.length} rails are declared and NONE are recorded as wired.`)
-    console.log('Seed one:  mkdir -p eng-rulebook-audit/profiles && node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template > eng-rulebook-audit/profiles/guard-rails.md')
+    console.log('Seed one:  mkdir -p "' + join(home(), 'profiles') + '" && node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template > "' + LEDGER + '"')
     process.exit(1)
   }
   const led = readFileSync(ledgerPath, 'utf8')

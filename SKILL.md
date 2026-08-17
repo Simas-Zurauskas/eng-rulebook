@@ -16,31 +16,89 @@ for defects no rule covers). These codify the patterns that survived real audits
 | --- | --- | --- |
 | `/eng-rulebook <topic>` (e.g. `security`), or auto-triggered by build/review work | **Build-time load** (default) | Read the matching master(s) + profile **before writing**, so the rules are defaults, not after-the-fact findings. Follow "How to use" below. |
 | `/eng-rulebook check [<ref>]` | **Check** (diff-scoped) | Verify a change against the standards it touches, at merge cadence. Follow "Check mode" below. |
-| `/eng-rulebook guardrails` | **Guard rails** | Reconcile declared rails against this workspace's ledger (`eng-rulebook-audit/profiles/guard-rails.md`): from the **workspace root**, `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger`. Seed one with `--template`. A rail claimed wired that cannot be located is a finding at the rule's severity. |
+| `/eng-rulebook guardrails` | **Guard rails** | Reconcile declared rails against this workspace's ledger (`<home>/profiles/guard-rails.md` — see § Where eng-rulebook writes): from the **workspace root**, `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --ledger`. Seed one with `--template`. A rail claimed wired that cannot be located is a finding at the rule's severity. |
 | `/eng-rulebook contribute` | **Contribute** | Raise a `library-gap` against the master. Check it against the intake bar in `references/_gaps.md`, then add a row there. |
-| `/eng-rulebook pulse` | **Pulse** | Between-audit structural tripwires: from the workspace root, `node .claude/skills/eng-rulebook/meta/pulse.mjs` (`--baseline` to set the reference point). Approximate duplication/churn/error-masking metrics vs baseline, written to `eng-rulebook-audit/pulse/<date>.md`. A crossed tripwire is a reason to pull `/eng-rulebook audit` forward — a signal, never a finding and never a gate. |
+| `/eng-rulebook pulse` | **Pulse** | Between-audit structural tripwires: from the workspace root, `node .claude/skills/eng-rulebook/meta/pulse.mjs` (`--baseline` to set the reference point). Approximate duplication/churn/error-masking metrics vs baseline, written to `<home>/pulse/<date>.md` (§ Where eng-rulebook writes). A crossed tripwire is a reason to pull `/eng-rulebook audit` forward — a signal, never a finding and never a gate. |
 | `/eng-rulebook profile <topic>` · `/eng-rulebook profile status` | **Profile** | Create or review this workspace's declared facts for a topic. Follow "Profile mode" below. |
-| `/eng-rulebook audit`, `/eng-rulebook audit <topic>`, `/eng-rulebook all` | **Audit** | Run the multi-agent, coverage-gated, independently-verified audit of the codebase against the standards; write a report to `eng-rulebook-audit/<date>/`. **Follow [`audit.md`](audit.md) — read it in full and execute it.** `audit` = all standards; `audit <topic>` = one standard's criteria; `all` = alias for `audit`. |
+| `/eng-rulebook audit`, `/eng-rulebook audit <topic>`, `/eng-rulebook all` | **Audit** | Run the multi-agent, coverage-gated, independently-verified audit of the codebase against the standards; write a report to `<home>/audits/<date>/` (§ Where eng-rulebook writes). **Follow [`audit.md`](audit.md) — read it in full and execute it.** `audit` = all standards; `audit <topic>` = one standard's criteria; `all` = alias for `audit`. |
 
 The point of the default mode is timing: load the relevant standard **before writing**, not
 after a review finds the violation. The audit mode is the verification twin — same criteria,
 applied after the fact.
+
+## Where eng-rulebook writes
+
+**This section is the single normative statement of the output location.** Everywhere else —
+the mode table above, `audit.md`, `README.md`, every master's Appendix A — refers to `<home>`
+and points here. Two statements of the same path is how they come to disagree with nothing able
+to detect it.
+
+**Resolve `<home>`, in this order, from the directory the command was run in:**
+
+1. **An explicit override** — `--root <dir>` for the scripts, an invoker-supplied path for the
+   agent modes. Wins outright. A `--root` that does not exist is an error, never an implicit
+   `mkdir`.
+2. **The project wiki.** Candidates are the `wiki-*/` directories in the current directory; the
+   `.internal/plan.yaml` marker is what makes one a real wiki-system wiki.
+   - Exactly one candidate → `<that>/eng-rulebook/`. If it has no marker, use it anyway but say
+     it is not a wiki-system wiki.
+   - Several candidates, exactly one marked → the marked one wins.
+   - Several candidates, two or more marked → **stop and ask.** Never pick between two real
+     wikis silently.
+   - Several candidates, none marked → fall through to 3, saying which folders were found and
+     that `--root` selects one.
+3. **Otherwise `eng-rulebook-audit/`** under the current directory — the standalone / no-wiki
+   case.
+
+Being a git repo is not part of resolution: a resolved wiki directory that is not yet a repo is
+still used, and eng-rulebook never runs `git init` on the project's behalf.
+
+**The tree is the same whichever branch resolved:**
+
+```
+<home>/
+  .gitignore                 # seeded when absent: audits/*/_work/
+  profiles/
+    <topic>-profile.md       # this workspace's declared facts
+    guard-rails.md           # the wired-rails ledger
+  audits/<YYYY-MM-DD>/       # one report directory per audit run
+  pulse/<date>.md            # + baseline.json
+```
+
+**Why the wiki.** The wiki folder is its own git repo and the project's one shared artifact,
+while the workspace root that holds it is deliberately *not* a repo. Profiles are decisions the
+team has made; kept at the workspace root they are tracked by nothing and reach nobody. Inside
+`wiki-{project}/` they travel with the rest of the project's documentation. They sit in a part
+of the docs root that wiki-system contractually never writes, deletes, or walks, so a `recheck`
+will not touch them.
+
+**They do not reach CI for free.** The wiki is a *separate* repo from the code repos, so a CI job
+running in a code repo must check the wiki out to read a profile. That is a deliberate trade:
+the alternative — a copy per code repo — is the per-project variance this library exists to
+prevent.
+
+**Migrating an older install.** Profiles previously lived at `eng-rulebook-audit/profiles/`
+(v2) and, before that, inside the skill at `profiles/`. Both are still **read** when `<home>`
+has none, with a hint naming the `mv`; neither is ever written. If both `<home>` and a legacy
+location hold profiles, `<home>` wins and the duplicate is reported — never merged, because
+merging two half-filled fact sets produces a profile nobody decided.
 
 ## How to use (build-time load)
 
 1. Match the task to topic(s) in the routing table below.
 2. **Read the matching master file(s) whole** — each is 200–450 lines, sized to be loaded
    in full. Load the lane you're in, not the library.
-3. **Check the workspace's `eng-rulebook-audit/profiles/` directory for a profile:**
-   `eng-rulebook-audit/profiles/<topic>-profile.md` under the workspace root (next to the
-   audit reports, tracked in the workspace repo so the facts travel to teammates and CI).
+3. **Check `<home>/profiles/` for a profile** — `<home>/profiles/<topic>-profile.md`, where
+   `<home>` resolves per § Where eng-rulebook writes (normally `wiki-{project}/eng-rulebook/`,
+   which is a git repo, so the facts travel to teammates).
    A profile is this workspace's filled-in copy of the standard's Appendix A template — the
    current project facts that make generic rules decidable (spec globs, state machines, env
    tables, session tiers). Living reference data, not run records: update it when the
    project changes.
    If it is missing, proceed on the master alone, say so, and offer to create the profile
-   from the master's Appendix A template. (A profile found in the *skill's* old `profiles/`
-   directory is a pre-relocation leftover: offer to move it to `eng-rulebook-audit/profiles/`.)
+   from the master's Appendix A template. (A profile found at a legacy location — the
+   workspace-root `eng-rulebook-audit/profiles/`, or the *skill's* old `profiles/` — is read,
+   with an offer to move it to `<home>/profiles/`.)
 4. If a topic argument was passed (`/eng-rulebook security`), load that master directly.
 5. When fanning out implementation subagents, put the relevant master's path (and the
    profile path, if any) in the agent prompt — rules only work in the context that writes
@@ -122,15 +180,15 @@ Whether a change ships is the delivery process's call (`references/README.md` §
 ## Profile mode
 
 A profile is this workspace's filled-in copy of a standard's **Appendix A**. Several rules are
-explicitly undecidable without one, so an empty `eng-rulebook-audit/profiles/` is not a neutral
-state — it is a set of decisions nobody has made.
+explicitly undecidable without one, so an empty `<home>/profiles/` is not a neutral state — it
+is a set of decisions nobody has made.
 
-Profiles live under the **workspace root** at `eng-rulebook-audit/profiles/` — beside the audit
-reports, tracked in the workspace repo — never inside the skill folder, so a skill update can't
-clobber them and they reach teammates and CI with the rest of the project.
+Profiles live at `<home>/profiles/` (§ Where eng-rulebook writes) — beside the audit reports,
+in the project's wiki repo — never inside the skill folder, so a skill update can't clobber
+them and they travel to teammates with the rest of the project's documentation.
 
 `/eng-rulebook profile <topic>` — copy that master's Appendix A tables into
-`eng-rulebook-audit/profiles/<topic>-profile.md` and fill what can be filled:
+`<home>/profiles/<topic>-profile.md` and fill what can be filled:
 
 1. **Derive what the code already answers.** Most cells are discoverable — session tiers from the
    auth middleware, env tables from the boot guard, generated directories from the build scripts.
@@ -199,14 +257,14 @@ follow [`audit.md`](audit.md) — the `/eng-rulebook audit` procedure.
   `eng-rulebook/`** — Claude Code derives a project skill's command from the directory name, and the
   `name:` frontmatter field above is only the display label. Installed under any other directory
   name, every `/eng-rulebook …` reference in these files is wrong for that workspace. The skill
-  carries **no profiles** — a workspace's profiles live in its own tree at
-  `eng-rulebook-audit/profiles/`, so a skill update never clobbers them and one project's facts
+  carries **no profiles** — a workspace's profiles live in its own tree at `<home>/profiles/`
+  (§ Where eng-rulebook writes), so a skill update never clobbers them and one project's facts
   never arrive in another as a decision nobody there made. If you find a `<topic>-profile.md`
   inside the skill folder naming a project that is not this one, it is inherited contamination
-  from before the relocation: move this workspace's own profiles to
-  `eng-rulebook-audit/profiles/` and delete the rest, saying so. Never scatter copies of
-  individual standards into repos, wikis, or prompts — per-project variance lives in
-  `eng-rulebook-audit/profiles/` only.
+  from before the relocation: move this workspace's own profiles to `<home>/profiles/` and
+  delete the rest, saying so. Never scatter copies of individual standards into repos, wikis,
+  or prompts — the standards stay in this skill and per-project variance lives in
+  `<home>/profiles/` only.
 - **A recurring audit finding is a library bug:** either a standard is missing a rule or a
   guard rail isn't wired. Update the master (per `references/_authoring.md`) — don't just fix the
   instance.

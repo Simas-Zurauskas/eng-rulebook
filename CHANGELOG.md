@@ -32,6 +32,52 @@ reordering would not close it.
 
 ---
 
+## v3 — 2026-08-17
+
+**Profiles, audit reports and pulse output move into the project's wiki repo.** v2 put them at
+`eng-rulebook-audit/` under the workspace root, justified as "tracked in the workspace repo so
+the facts travel to teammates and CI". In a wiki-system workspace that was false: the workspace
+root is deliberately **not** a git repo, so nothing there was tracked and the profiles reached
+nobody. The wiki folder next to it *is* a repo and is the project's one shared artifact.
+
+**EDITORIAL** · Touches: all 16 rulebooks
+**No obligation changes** — a relocation moves where a fact is written, not what any rule
+requires. Every master's change is the one Appendix A pointer line; no `Rev:` was bumped and no
+`§` renumbered, so every prior `Standard:` citation still resolves.
+
+- **New `<home>` concept, defined once** in `SKILL.md` § Where eng-rulebook writes and referenced
+  by filename everywhere else. Resolution: `--root <dir>` wins; else a `wiki-*/` folder in CWD
+  (disambiguated by the `.internal/plan.yaml` marker — two marked wikis stop and ask, several
+  unmarked ones fall through); else `eng-rulebook-audit/` under CWD.
+- **Layout under `<home>`:** `profiles/`, `audits/<date>/`, `pulse/<date>.md`, and a `.gitignore`
+  written whenever that file is **absent**, carrying `audits/*/_work/`. An existing one is never
+  rewritten or appended to, so a project on `Audit evidence retention: committed` opts out by
+  deleting the *line* and keeping the file.
+- **Audit reports gained the `audits/` level.** A pre-v3 report at `eng-rulebook-audit/<date>/`
+  is still found — `audit.md` delta mode now searches four layouts, three of them legacy, so a delta pass does
+  not report every prior finding as new.
+- **New `meta/home.mjs`**, the executable half of the rule, imported by `guard-rails.mjs` and
+  `pulse.mjs`. Both gained `--root <dir>`, parsed positionally-independently (`guard-rails.mjs`
+  previously read its mode from `argv[2]`, so `--root X --ledger` would have been ignored).
+  `guard-rails.mjs` resolves the home lazily: plain list mode reads only this library and must
+  not fail because a workspace holds two wikis.
+- **Corrected a claim, not just a path:** profiles do **not** reach CI for free. The wiki is a
+  separate repo from the code repos, so a CI job there must check it out. Fixed everywhere the
+  library asserted otherwise.
+- **`meta/pulse.mjs` is text again.** Its duplication-window separator was a raw NUL byte typed
+  into the source, so `file` called the script "binary data" and plain `grep` skipped the whole
+  file — including its hardcoded paths. Now the explicit escape; the runtime string is
+  byte-identical, so existing `baseline.json` files stay comparable.
+
+**Migrating.** Nothing moves on its own. Legacy locations — `eng-rulebook-audit/profiles/` at the
+workspace root (v2) and the skill-local `profiles/` (pre-v2) — are still **read**, with a hint
+naming the `mv`; neither is ever written. If both hold profiles, `<home>` wins and the duplicate
+is reported rather than merged.
+
+```
+mv eng-rulebook-audit/profiles/*.md wiki-{project}/eng-rulebook/profiles/
+```
+
 ## v2 — 2026-08-11
 
 The fix-pack release from the 2026-08 external assessment (assessed calibration, audit depth and

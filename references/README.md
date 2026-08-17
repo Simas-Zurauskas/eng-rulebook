@@ -17,8 +17,8 @@ Three artifacts, three jobs — the same layering the comment standard is built 
 | Artifact | Job | Lives |
 | --- | --- | --- |
 | **Standards** (this library) | How we build — generic, cross-project | inside the `eng-rulebook` skill (`references/`), routed by its `SKILL.md` |
-| **Audit** | How we verify — after the fact | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to the workspace's `eng-rulebook-audit/<date>/` |
-| **Project profiles** | The workspace's current facts (not run records) | the workspace's `eng-rulebook-audit/profiles/<topic>-profile.md` — next to the audit reports, **tracked in the workspace repo** so the facts travel to teammates and CI |
+| **Audit** | How we verify — after the fact | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to `<home>/audits/<date>/` |
+| **Project profiles** | The workspace's current facts (not run records) | `<home>/profiles/<topic>-profile.md` — next to the audit reports, **tracked in the project's wiki repo** so the facts travel to teammates (a CI job in a code repo must check that repo out) |
 
 Standards and the audit are twins in **one skill**: `/eng-rulebook <topic>` loads a rulebook
 before building; `/eng-rulebook audit` checks the code against the same rulebooks and writes a
@@ -38,15 +38,16 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
    wikis, or prompts; that recreates the drift problem the library exists to prevent.
 2. **Fill in profiles.** Each standard that needs project facts ends with an
    **Appendix A — Project profile (TEMPLATE)**. Copy the template (not the standard) to
-   the workspace's `eng-rulebook-audit/profiles/<topic>-profile.md`, fill it in, keep it
-   current — and **track it in the workspace repo**, so teammates and CI see the same facts.
+   `<home>/profiles/<topic>-profile.md`, fill it in, keep it
+   current — and **commit it**, so teammates see the same facts.
    Rules are universal; the profile is this workspace's instantiation of them — living
    reference data, not a run log. *(Migrating an older install: move any
-   `.claude/skills/eng-rulebook/profiles/*.md` here.)*
+   `.claude/skills/eng-rulebook/profiles/*.md`, or any `eng-rulebook-audit/profiles/*.md`
+   left at the workspace root, here.)*
 3. **Wire the guard rails.** Every standard ends with CI checks that make it enforceable
    rather than aspirational. Adopt them incrementally; each names what it catches.
-4. **Audit against it.** Run `/eng-rulebook audit` periodically (reports land in the workspace's
-   `eng-rulebook-audit/<date>/`); a finding that recurs across runs is either a missing guard
+4. **Audit against it.** Run `/eng-rulebook audit` periodically (reports land in
+   `<home>/audits/<date>/`); a finding that recurs across runs is either a missing guard
    rail or a `library-gap` — fix the standard, not just the instance.
 
 ## The standards

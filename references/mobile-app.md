@@ -329,7 +329,7 @@ CI checks that make this standard enforceable, not aspirational:
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy
-> the tables into the project's profile (e.g. `eng-rulebook-audit/profiles/mobile-app-profile.md`)
+> the tables into the project's profile (e.g. `<home>/profiles/mobile-app-profile.md`)
 > and fill them there. Agents: §3–§5 and §8–§11 are not decidable without it.
 
 **Version gates (§4):**

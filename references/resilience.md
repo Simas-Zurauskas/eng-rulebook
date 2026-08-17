@@ -375,7 +375,7 @@ CI checks that make this enforceable rather than aspirational:
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
-> Copy the tables into `eng-rulebook-audit/profiles/resilience-profile.md` and fill them there.
+> Copy the tables into `<home>/profiles/resilience-profile.md` and fill them there.
 > Agents: read the profile before touching any external call site — §2–§6 are not
 > reviewable without the project's actual budgets and directions.
 

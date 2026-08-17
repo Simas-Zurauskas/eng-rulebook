@@ -1,11 +1,13 @@
 # LEGACY deprecation window — profiles moved OUT of the skill (v2).
 #
-# A workspace's profiles now live in the WORKSPACE tree at eng-rulebook-audit/profiles/
-# (tracked there on purpose, so facts travel to teammates and CI). This skill carries none.
+# A workspace's profiles now live in the WORKSPACE tree at <home>/profiles/ — normally
+# wiki-{project}/eng-rulebook/profiles/, else eng-rulebook-audit/profiles/ (see SKILL.md
+# § Where eng-rulebook writes). Tracked there on purpose, so the facts travel to teammates.
+# This skill carries none.
 #
 # This stanza stays for one deprecation window: a cloned install from before the relocation
 # may still hold filled skill-local profiles, and without the ignore a reflexive
 # `git add -A` + push would publish that workspace's session tiers, env tables, ids and
 # thresholds to the shared library remote. Migrate (mv profiles/*.md
-# <workspace>/eng-rulebook-audit/profiles/), then this stanza can be dropped in a later release.
+# <home>/profiles/), then this stanza can be dropped in a later release.
 profiles/*

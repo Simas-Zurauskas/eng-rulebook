@@ -20,8 +20,21 @@
 
 You are performing a **full code & project quality audit** of this workspace, run as the
 `eng-rulebook` skill's audit mode. The deliverable is a decision-grade report directory
-`eng-rulebook-audit/<YYYY-MM-DD>/` (today's date) under the workspace root — create the
-`eng-rulebook-audit/` parent if absent. The report combines three lenses in one pass:
+`<home>/audits/<YYYY-MM-DD>/` (today's date), where `<home>` resolves per `SKILL.md`
+§ Where eng-rulebook writes — normally `wiki-{project}/eng-rulebook/`, falling back to
+`eng-rulebook-audit/` under the workspace root when the project has no wiki. Create the parents
+if absent, and **if `<home>/.gitignore` does not exist, create it** with exactly:
+
+```
+audits/*/_work/
+```
+
+Audit is the only mode that produces `_work/`, and the scripts that would otherwise seed that
+file (`meta/pulse.mjs`, `meta/guard-rails.mjs --template`) may never have run here. Never touch
+an existing `<home>/.gitignore` — see the Retention note below. **A report written under a wiki home is committed to a shared docs repo and outlives
+the run, so prime directive 6's redaction is a hard control there, not hygiene** — the same
+condition the Retention note below states for `_work/`. The report combines three lenses in one
+pass:
 
 - **Lens A — Defects:** correctness, security, resilience, concurrency, data integrity, performance. Asks *"is it correct and safe, and will it stay up under load and failure?"*
 - **Lens B — Code health:** duplication (DRY), consistency, organization, type discipline, refactor opportunities, tooling uniformity. Asks *"is it clean, consistent, and cheap to change?"*
@@ -44,7 +57,7 @@ Every finding belongs to exactly **one** lens (cross-reference, never duplicate)
 > **closes:** `state.md` row `phase-0` · writes `_work/state.md` (creating `_work/` and the run's `run:` stamp, written **once** here and never recomputed — a run spanning midnight must not change its own directory).
 
 - Read the workspace `CLAUDE.md`, each repo's `CLAUDE.md`/`README`, and the project wiki/docs index if one exists. Note documented gotchas (e.g. known-stale comments) so auditors don't rediscover them as findings.
-- **Load the criteria (this skill's own references).** Read `references/README.md` (the index) and, for `/eng-rulebook audit`, every master under `references/`; for `/eng-rulebook audit <topic>`, that one master. Read every filled profile under the workspace's `eng-rulebook-audit/profiles/*.md` (legacy installs may still hold them in the skill's `profiles/` — read those too and flag the pending migration) — the profiles hold the project facts that make generic rules decidable (session tiers, spec globs, state machines, env tables), and every rule that turns on a project fact is undecidable without them. A profile that is missing is itself a finding candidate (the project has not declared a decision the standard requires); a profile's claims are verified against code like any other doc — a stale profile is worse than a missing one. Each auditor's context pack (below) carries the masters + profiles relevant to its shard so findings can cite `Standard: <file §rule>`.
+- **Load the criteria (this skill's own references).** Read `references/README.md` (the index) and, for `/eng-rulebook audit`, every master under `references/`; for `/eng-rulebook audit <topic>`, that one master. Read every filled profile under `<home>/profiles/*.md` (`SKILL.md` § Where eng-rulebook writes; legacy installs may still hold them at the workspace-root `eng-rulebook-audit/profiles/` or inside the skill's `profiles/` — read those too and flag the pending migration) — the profiles hold the project facts that make generic rules decidable (session tiers, spec globs, state machines, env tables), and every rule that turns on a project fact is undecidable without them. A profile that is missing is itself a finding candidate (the project has not declared a decision the standard requires); a profile's claims are verified against code like any other doc — a stale profile is worse than a missing one. Each auditor's context pack (below) carries the masters + profiles relevant to its shard so findings can cite `Standard: <file §rule>`.
 - **Verify the criteria before auditing against them.** Run `node meta/check-rulebook-shape.mjs` and record its output in the coverage-and-method report.
 - **Check anchor freshness.** Each master's §0 External-anchors table carries the date it was verified. Flag any table older than 12 months in the coverage-and-method report, and treat a rule resting on a **superseded revision or an expired draft** as `Plausible` rather than confirmed until the anchor is re-checked — a rule can be textually intact and still cite a document that no longer says what it said. Re-verifying every anchor is not this run's job; noticing that one is stale is. Every `Standard:` field this run emits is an anchor into these files; if an anchor does not resolve, findings citing it are unverifiable by directive 2 and the reader cannot look the rule up. This is the only place the check meets a run that reliably happens.
 - **Context budget.** Reading *every* master here is what exhausts the orchestrator first (§ Execution discipline). Read `references/README.md` (the index) plus only the masters a shard actually needs; the full text of a master belongs in the sub-agent auditing against it, which is where the context budget lives. For `/eng-rulebook audit <topic>`, that one master.
@@ -54,7 +67,7 @@ Every finding belongs to exactly **one** lens (cross-reference, never duplicate)
   3. **Else — no override and no CLAUDE.md scope statement — do not proceed on a guess.** List every top-level directory you discovered, classify each as likely-maintained / sandbox / legacy / asset-only / secrets, and **ask the invoker to confirm the set** before fanning out. A multi-agent audit is expensive and a mis-scoped run wastes all of it.
   In every case, **state the boundary you drew**: list what you are **excluding** (legacy read-only reference trees, design sandboxes, asset-only folders, secrets directories) and why. If CLAUDE.md's layout looks stale against what is on disk (a listed repo missing, an unlisted code unit present), flag the discrepancy and confirm rather than trusting either blindly.
 - Record per repo: current branch, commit SHA, clean/dirty tree, and divergence from the default/deploy branch (`git status --porcelain`, `git rev-parse HEAD`, `git rev-list --count`). These SHAs pin the audit snapshot and go in the README header.
-- **Delta mode:** if prior report directories exist under `eng-rulebook-audit/` — **or under the legacy names `standards-audit/` and `audit-*`, from before this convention** — read their READMEs and must-fix lists. Search all three; a workspace audited before the skill was renamed has its history under the old name, and a delta pass that cannot see it silently reports every prior finding as new. Resolve each prior Critical/High in this order, and the order is load-bearing:
+- **Delta mode:** if prior report directories exist under `<home>/audits/` — **or under any of the legacy layouts: `eng-rulebook-audit/<date>/` at the workspace root (before reports moved into the home), and the older names `standards-audit/` and `audit-*` (from before the skill was renamed)** — read their READMEs and must-fix lists. Search all four; a workspace audited under an earlier convention has its history there, and a delta pass that cannot see it silently reports every prior finding as new. Resolve each prior Critical/High in this order, and the order is load-bearing:
   1. **`rule-changed` FIRST.** Compare the library `VERSION` and the cited rulebook's `Rev:` against what the prior report recorded; walk `CHANGELOG.md` for any `RELAXES` or `Renumbered:` entry touching the cited file. If the rule the finding cites was weakened, removed, or renumbered, the finding resolves as **`rule-changed`** — never as `fixed`. The other three labels all presuppose a stable rule, so evaluating them first is what marks a finding `fixed` when the rule was merely deleted, which a human reads as *"the security gap was closed"*.
   2. Then `fixed` / `still-open` / `regressed`, **re-verified in current code** — do not trust the old report.
   If a rulebook's `Rev:` is unchanged since the prior report, the rule provably did not change and the CHANGELOG walk is skipped for that file. Do not re-derive from scratch what a prior audit already evidences; re-verify and cite it.
@@ -167,7 +180,7 @@ Run verification **as findings land**, not as a final batch — an interrupted r
 Output layout:
 
 ```
-eng-rulebook-audit/<date>/
+<home>/audits/<date>/
   README.md                     # the executive report — see spec below
   01-<repo>.md …                # one per repo: Part A (defects, by severity), Part B (code health, by leverage)
   NN-cross-repo.md              # seams, end-to-end trace, hand-mirrored contracts
@@ -194,12 +207,14 @@ table rather than re-enumerating it: two lists of the same artifacts is how they
 | `_work/guard-rails.md` | Phase 2b | Declared-vs-wired reconciliation, and every claimed-wired rail that could not be located |
 | `_work/state.md` | Every phase | Phase status only — authoritative for *status*; each artifact above is authoritative for its own *contents* |
 
-**Retention.** `_work/` is gitignored by default — it is working state, not a deliverable. A project that needs an
-immutable evidence trail (an external audit regime, a customer commitment) sets `Audit evidence retention:
-committed` in its profile, and **two things change together**: `_work/` is committed, and directive 6's redaction
-becomes a hard control rather than hygiene, because the working artifacts then outlive the run.
-`eng-rulebook-audit/profiles/`, by contrast, is **tracked on purpose** — profiles are the workspace's declared
-facts and must travel to teammates and CI; only the run artifacts are candidates for ignoring.
+**Retention.** `_work/` is gitignored by default — it is working state, not a deliverable. That default is
+enforced by the `audits/*/_work/` line in `<home>/.gitignore`, which eng-rulebook writes when that file is
+**absent** and never rewrites once it exists. A project that needs an immutable evidence trail (an external audit
+regime, a customer commitment) sets `Audit evidence retention: committed` in its profile and deletes that **line**
+— keeping the file, which is what makes the choice stick — and **two things change together**: `_work/` is committed, and directive 6's redaction becomes a hard control rather than
+hygiene, because the working artifacts then outlive the run. Because an existing `.gitignore` is never rewritten, that edit stands. `<home>/profiles/`, by contrast, is **tracked on purpose** — profiles are the workspace's declared facts
+and must travel to teammates; only the run artifacts are candidates for ignoring. (A CI job in a code repo must
+check the wiki out to read them — see `SKILL.md` § Where eng-rulebook writes.)
 
 **Finding format (uniform across all files):**
 
@@ -225,6 +240,6 @@ IDs are stable and prefixed per file (A1…, B1…, X1…, T1…, S1…). Severi
 
 - **Orchestrate parallel sub-agents; cap at ~10 concurrent.** Above that, coordination overhead and context-poisoning risk outweigh the parallelism gain — scale by deepening (a shard agent can dispatch its own sub-shards), not by widening the pool. The orchestrator never reads raw source into its own context; it dispatches (census, auditors, verifiers) and synthesizes returned structured results — that context is the first thing a large multi-repo run exhausts.
 - Prefer many small shards over few large ones.
-- **Persist continuously to `eng-rulebook-audit/<date>/_work/`** — per the inventory in Phase 8, which is the single normative list of what goes there and which phase writes it. The reports are assembled (Phase 8) from these artifacts.
+- **Persist continuously to `<home>/audits/<date>/_work/`** — per the inventory in Phase 8, which is the single normative list of what goes there and which phase writes it. The reports are assembled (Phase 8) from these artifacts.
 - If you must stop early: finish verification of findings already discovered, write the ledger with honest dispositions, and mark unexecuted phases in the what-ran table. **Never present partial coverage as full** (Prime directive 5).
 - If sub-agent orchestration is unavailable, run the same shard plan sequentially — the census, coverage gate, ledger, registry, and independent verifier are what guarantee completeness, not the parallelism. They are all still mandatory in sequential mode.

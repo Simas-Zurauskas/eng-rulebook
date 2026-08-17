@@ -409,7 +409,7 @@ cookie is *sufficient* to authorise a write; both are review questions answered 
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy the tables into the
-> project's profile (e.g. `eng-rulebook-audit/profiles/web-client-profile.md`) and fill them there. Agents: §2, §3, §4, §5.4, §6, §7, §8, §9 and §10 are not decidable without it.
+> project's profile (e.g. `<home>/profiles/web-client-profile.md`) and fill them there. Agents: §2, §3, §4, §5.4, §6, §7, §8, §9 and §10 are not decidable without it.
 
 **Web surfaces (§4, §5.4) — one row per deployed client. *Privileged* = renders admin function, billing, or
 personal data (§7.1):**

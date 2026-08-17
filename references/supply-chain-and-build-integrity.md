@@ -407,7 +407,7 @@ review decisions. No tool decides them.
 ## Appendix A — Project profile (TEMPLATE)
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master. Copy the tables
-> into the project's profile (e.g. `eng-rulebook-audit/profiles/supply-chain-and-build-integrity-profile.md`) and fill them
+> into the project's profile (e.g. `<home>/profiles/supply-chain-and-build-integrity-profile.md`) and fill them
 > there. Agents: read it before touching CI config, release workflows or dependency manifests — §2.1,
 > §3.1, §3.4, §4.2, §5.2 and §6.1 are not decidable without it. Regulatory applicability is one row in
 > the register named in §0, not a table here.

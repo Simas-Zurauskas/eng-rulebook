@@ -17,9 +17,9 @@ _before_ building** instead of findings a review catches afterward.
 - Check a **diff** at merge cadence, or run a full **audit** of the workspace.
 - The mechanizable rules ship as **runnable checks** in [`checks/`](checks/) — semgrep, ESLint,
   tsconfig, CI.
-- **Per-project facts** (session tiers, env tables, thresholds) live in the **workspace's**
-  `eng-rulebook-audit/profiles/` — next to the audit reports, tracked in the workspace repo —
-  never inside the skill. The skill ships none, by design.
+- **Per-project facts** (session tiers, env tables, thresholds) live in the project's
+  **wiki repo** at `wiki-{project}/eng-rulebook/profiles/` — next to the audit reports, tracked
+  there — never inside the skill. The skill ships none, by design.
 - A defect **no rule covers** goes back upstream to [`references/_gaps.md`](references/_gaps.md),
   so the next project doesn't rediscover it.
 
@@ -29,11 +29,11 @@ _before_ building** instead of findings a review catches afterward.
 | --- | --- | --- |
 | `/eng-rulebook <topic>` | Build-time load | Reads the matching rulebook **before you write**, e.g. `/eng-rulebook security`. Also auto-triggers when you start work on a covered area. |
 | `/eng-rulebook check [<ref>]` | Check | Diff-scoped verification at merge cadence — the middle between loading a rulebook and auditing a workspace. |
-| `/eng-rulebook audit [<topic>]` | Audit | Audits the workspace against all standards, or one → report in `eng-rulebook-audit/<date>/`. `/eng-rulebook all` is an alias. |
+| `/eng-rulebook audit [<topic>]` | Audit | Audits the workspace against all standards, or one → report in `<home>/audits/<date>/`. `/eng-rulebook all` is an alias. |
 | `/eng-rulebook profile <topic>` | Profile | Creates this workspace's declared facts for a topic from the rulebook's Appendix A; `status` reports what is missing. |
 | `/eng-rulebook guardrails` | Guard rails | Reconciles the 113 declared guard rails against what this workspace has actually wired. |
 | `/eng-rulebook contribute` | Contribute | Raises a `library-gap` — a defect no rule covers — against the master. |
-| `/eng-rulebook pulse` | Pulse | Between-audit tripwires: approximate duplication/churn/error-masking metrics vs a baseline (`meta/pulse.mjs`) → `eng-rulebook-audit/pulse/<date>.md`. A crossed tripwire pulls the next audit forward; it is a signal, never a gate. |
+| `/eng-rulebook pulse` | Pulse | Between-audit tripwires: approximate duplication/churn/error-masking metrics vs a baseline (`meta/pulse.mjs`) → `<home>/pulse/<date>.md`. A crossed tripwire pulls the next audit forward; it is a signal, never a gate. |
 
 ## Topics (the rulebooks)
 
@@ -70,7 +70,7 @@ Three artifacts, three jobs:
 | --- | --- | --- |
 | **Standards** (the rulebooks) | *How we build* — generic, cross-project | [`references/`](references/) |
 | **Audit** | *How we verify* — after the fact | [`audit.md`](audit.md), run by `/eng-rulebook audit` |
-| **Profiles** | *This workspace's current facts* — not run records | the workspace's `eng-rulebook-audit/profiles/` |
+| **Profiles** | *This workspace's current facts* — not run records | `<home>/profiles/` — normally `wiki-{project}/eng-rulebook/profiles/` |
 
 - **Standards and the audit are twins.** A rulebook states a property up front; the audit
   checks the code for the same property afterward. An audit finding maps back to the exact
@@ -79,7 +79,7 @@ Three artifacts, three jobs:
   improves and the next project doesn't rediscover it.
 - **Generic rules, project-specific profiles.** A rulebook never names a project. The facts
   that make a generic rule decidable (session tiers, spec globs, state machines, env tables)
-  go in the workspace's `eng-rulebook-audit/profiles/<topic>-profile.md`, copied from that
+  go in `<home>/profiles/<topic>-profile.md`, copied from that
   rulebook's **Appendix A** template.
 - **Guard rails are tracked, not just declared.** Each rulebook ends with CI checks, and each
   carries a **stable id** (`security.GR3`). A workspace records which it has wired in a ledger;
@@ -131,11 +131,11 @@ guard rails for product code and exempts itself is not credible.
 2. **Check the skill carries no profiles.** Profiles are workspace facts and live in the
    workspace tree, not the skill — if the copy you adopted contains a `profiles/` directory
    with `<topic>-profile.md` files, they are a previous workspace's facts (or your own,
-   pre-relocation): move yours to `eng-rulebook-audit/profiles/` and delete the rest. They
+   pre-relocation): move yours to `<home>/profiles/` and delete the rest. They
    read as decisions your project never made.
 3. **Fill in profiles** with `/eng-rulebook profile <topic>` as decisions are made — they are
-   written to the workspace's `eng-rulebook-audit/profiles/` and **tracked in the workspace
-   repo**, so teammates and CI see the same facts; `/eng-rulebook profile status` reports
+   written to `<home>/profiles/` and **committed to the project's wiki repo**, so teammates
+   see the same facts; `/eng-rulebook profile status` reports
    what is still missing. **Fill order:** security, config-and-environment, data-integrity
    and testing first (they carry most profile-dependent rules); the rest when their lane is
    first touched.
@@ -147,15 +147,16 @@ guard rails for product code and exempts itself is not credible.
 ## Profiles live in the workspace — by design
 
 This repository is the **library master**: generic rulebooks and nothing else. Profiles live
-in the adopting **workspace's** tree at `eng-rulebook-audit/profiles/<topic>-profile.md` —
-beside the audit reports, tracked in the workspace repo — never inside the skill folder.
+in the adopting **workspace's** tree at `<home>/profiles/<topic>-profile.md` — beside the
+audit reports, in the project's wiki repo — never inside the skill folder.
 
 That is deliberate, not an omission, and it does two jobs at once. A profile is one project's
 declared facts (session tiers, env tables, spec globs, coverage thresholds, store ids).
 Shipped inside the library, it would arrive in the next project as a **decision that project
 never made** — location outside the skill prevents that by construction. And because the
-profile sits in the workspace repo, it **travels with the project**: teammates and CI read
-the same declared facts, and a skill update can never clobber them. One non-topic file lives
+profile sits in the project's wiki repo, it **travels with the project**: teammates read the
+same declared facts, and a skill update can never clobber them. (The wiki is a separate repo
+from the code repos, so a CI job in a code repo must check it out to read a profile.) One non-topic file lives
 there too: `guard-rails.md`, the workspace's ledger of which declared guard rails are wired
 (seed it with `node .claude/skills/eng-rulebook/meta/guard-rails.mjs --template`). Cells a
 human must decide are written `DECIDE: <question>`, never guessed; each profile's header
@@ -165,7 +166,8 @@ decision. Until a workspace writes its own, rules needing project facts run on t
 masters and the agent says so.
 
 *Migrating an install from before this convention: move
-`.claude/skills/eng-rulebook/profiles/*.md` to `eng-rulebook-audit/profiles/`.*
+`.claude/skills/eng-rulebook/profiles/*.md`, or any `eng-rulebook-audit/profiles/*.md` left at
+the workspace root, to `<home>/profiles/`.*
 
 ## Versioning
 
@@ -197,15 +199,19 @@ eng-rulebook/
     check-rulebook-shape.mjs · check-tables.sh · check-version.sh · guard-rails.mjs · pulse.mjs
 ```
 
-Profiles are NOT in this tree — they live in the adopting workspace, beside the audit output:
+Profiles are NOT in this tree — they live in the adopting workspace's `<home>`, beside the
+audit output. `<home>` is the project's wiki repo when there is one, else `eng-rulebook-audit/`
+under the workspace root (`SKILL.md` § Where eng-rulebook writes):
 
 ```
-<workspace root>/
-  eng-rulebook-audit/
-    <date>/              # audit reports (see audit.md)
-    profiles/            # the workspace's own facts — tracked in the workspace repo
-      <topic>-profile.md #   created on demand via /eng-rulebook profile <topic>
-      guard-rails.md     #   the wired-rails ledger (guard-rails.mjs --template)
+wiki-{project}/            # the project's docs repo — its own git repo
+  eng-rulebook/            # = <home>
+    .gitignore             #   seeded when absent: audits/*/_work/
+    profiles/              #   the workspace's own facts — tracked here
+      <topic>-profile.md   #     created on demand via /eng-rulebook profile <topic>
+      guard-rails.md       #     the wired-rails ledger (guard-rails.mjs --template)
+    audits/<date>/         #   audit reports (see audit.md)
+    pulse/<date>.md        #   between-audit tripwires (+ baseline.json)
 ```
 
 ## How the skill loads

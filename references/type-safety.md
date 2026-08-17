@@ -331,7 +331,7 @@ CI checks that make this standard enforceable rather than aspirational:
 
 > **This is a blank template. Do not fill it in here** — this file is the shared master.
 > Copy the tables into the project's profile (e.g.
-> `eng-rulebook-audit/profiles/type-safety-profile.md`) and fill them there. Link it from the
+> `<home>/profiles/type-safety-profile.md`) and fill them there. Link it from the
 > project's `CLAUDE.md`.
 
 **Per-repo tsconfig deviations from §2.1 (each needs a justification and an exit plan):**
