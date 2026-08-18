@@ -32,6 +32,27 @@ reordering would not close it.
 
 ---
 
+## v6 — 2026-08-18
+
+**An installed copy of the library is read-only, and the rule is now stated normatively.** The
+library already said profiles never live inside the skill; everything else was left to inference,
+and one instruction cut against it — `_gaps.md` invited "add a row" with nothing saying which
+checkout. Read from inside a workspace clone that reads as an invitation to edit the installed
+copy, where the write is lost at the next update and invisible to teammates until then. `SKILL.md`
+§ Where eng-rulebook writes — already the single normative statement of output location — now
+states that the skill directory is never written to by any mode, any check, or any person, and
+that `<home>` never resolves inside it. `_gaps.md` carries a header marking it master-only, and
+the two unqualified "add a row" instructions (`SKILL.md` § After writing, `references/README.md`)
+now name the master explicitly.
+
+**EDITORIAL** · Touches: _gaps.md, references/README.md, SKILL.md
+**No obligation changes.** No rule text, `§` number or `Rev:` moved, and no rulebook was edited.
+Nothing about what the library *emits* changed: `<home>` resolution, the report tree, and the
+audit's `library-gaps.md` are all as they were in v5 — what changed is that writing anywhere else
+is now forbidden in text rather than merely unmentioned.
+
+---
+
 ## v5 — 2026-08-17
 
 **`/eng-rulebook check` now leaves a record.** Until now it reported to the session and nothing

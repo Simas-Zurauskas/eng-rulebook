@@ -30,6 +30,14 @@ the mode table above, `audit.md`, `README.md`, every master's Appendix A — ref
 and points here. Two statements of the same path is how they come to disagree with nothing able
 to detect it.
 
+**The skill directory is never written to — by any mode, by any check, or by a person.** An
+installed copy of this library is **read-only**: it is a clone that the next update overwrites,
+so a profile, a gap row, a run record or a local rule tweak left inside it is lost at that
+update and invisible to every teammate until it is. Every artifact this library produces —
+profiles, audit reports, check runs, and the gaps an audit found — is written under `<home>`,
+never beside the rules. `<home>` never resolves inside the skill directory, and no mode may
+create a path there.
+
 **Resolve `<home>`, in this order, from the directory the command was run in:**
 
 1. **An explicit override** — `--root <dir>` for the scripts, an invoker-supplied path for the
@@ -338,8 +346,10 @@ follow [`audit.md`](audit.md) — the `/eng-rulebook audit` procedure.
   instance.
 - **The master is the upstream, and gaps travel back to it.** A `library-gap` recorded only in a
   workspace's report folder is a gap the library never learns — it sits next to that workspace's
-  *copy*, and the next project rediscovers it. Raise it against the master via
-  adding a row to `references/_gaps.md`, whose four-point intake bar is the gate.
+  *copy*, and the next project rediscovers it. The audit already emits it to `library-gaps.md`
+  in the report; carrying that row into `references/_gaps.md` is library maintenance, done
+  against the master by whoever maintains it. Never edit the installed copy — it is read-only
+  (§ Where eng-rulebook writes). The backlog's four-point intake bar is the gate.
 - Standards disagree with a project's established convention → surface the conflict to the
   user; don't silently pick either side.
 - **Edited anything under `references/`? Run the library's own gates before you finish:**

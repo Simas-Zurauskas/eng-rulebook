@@ -2,6 +2,11 @@
 
 > Where a `library-gap` goes so it stops dying in a report folder.
 
+> **This file belongs to the master, and is read-only in an installed copy.** A workspace never
+> edits it — the skill directory is never written to (`SKILL.md` § Where eng-rulebook writes).
+> Gaps leave a workspace in the audit's `library-gaps.md`; carrying them here is library
+> maintenance, done against the master.
+
 A **library-gap** is a real defect that **no rule in this library covers**. The audit emits them
 (`audit.md` § Finding format), build-time mode emits them when a Checklist box cannot be decided
 from a diff (`SKILL.md` § After writing), and any reviewer can raise one.
@@ -13,7 +18,7 @@ rediscovered in the next workspace, and the next — which is precisely the drif
 exists to prevent, running in the one direction nobody instrumented.
 
 **The master is the upstream.** A gap recorded only in a workspace is a gap the library never
-learns. Add a row here, against the master.
+learns. Add a row here **in the master checkout**, never in an installed copy.
 
 **Two upstream sources feed this file.** An **audit** emits `library-gaps.md` in its report
 (`audit.md` § Finding format) — transcribe those rows here. And a delivery process's post-release
