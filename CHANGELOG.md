@@ -32,6 +32,47 @@ reordering would not close it.
 
 ---
 
+## v8 — 2026-09-06
+
+**Test data gets a provenance rule.** `testing.md` has always said where an *expected value*
+may come from (§4.5: the spec, never the code under test). It never said where the *input*
+comes from — so a suite could paste one fixture literal into eight specs, declare its own copy
+of a production type, and assert against a shape production had since changed, while staying
+green. §9 closes that (gap C13).
+
+**ADDS** · Touches: testing.md
+One new section (§9.1–§9.3), two guard rails, two Checklist boxes, two Failure shapes, one
+Appendix A column. Code that was compliant may now be non-compliant: a suite whose fixtures
+are hand-written duplicates now matches a rule it previously did not.
+
+### Why it is split on the arrange/assert axis
+
+"Use production code in tests" is wrong as a flat rule — stated flatly it contradicts two
+obligations this lane already carries. §4.5 requires the expected value to come from *outside*
+the code, and §5.6 *requires* hand-written duplicate literals for cross-repo mirrors, because
+no import path exists between the repos. So §9 splits the axis instead:
+
+| Phase | Where the value comes from | Owner |
+| --- | --- | --- |
+| **Arrange** (inputs, fixtures) | Imported — one factory per domain type, annotated with the production type, varied by overrides | §9.1, §9.2 |
+| **Assert** (expected values) | Hand-derived from the spec; never produced by the code under test | §4.5, §9.3 |
+
+§9.3 states the limit explicitly and names the standing exceptions to §9.2 — goldens, §5.6's
+mirror pins, and fixtures built to be invalid on purpose — so the two halves cannot be read as
+disagreeing. `testing.GR10` is what makes §9.1 pay: a factory annotated with the production
+type only converts a shape change into a failure if the test files are inside the type gate.
+
+### The lane went over the 450-line cap
+
+`testing.md` was at exactly 450 before this change and is 512 after. About 20 lines were
+recovered by compressing redundant prose; the remaining ~62 are the new obligations. Cutting
+existing rules to fit would be a **RELAXES** disguised as an editorial trim — it would turn
+prior findings into non-defects silently. It is recorded instead: `_gaps.md` C12 now names
+three over-cap lanes, not two, and the split it proposes carries the same citation blast
+radius there as it does in `security.md`.
+
+---
+
 ## v7 — 2026-09-06
 
 **The library becomes multi-language: Python and PHP join TypeScript as first-class lanes, and

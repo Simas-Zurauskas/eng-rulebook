@@ -44,7 +44,7 @@ Each master is 200–450 lines, sized to be read whole. Load the lane you're in,
 | [`php-typing`](references/php-typing.md) | **PHP:** `strict_types` scoping, analyser level, `mixed` policy, backed enums, comparison and identity |
 | [`php-packaging`](references/php-packaging.md) | **PHP:** Composer platform vs the real host, lockfile and install modes, extensions, plugin allowlist, PSR-4, tasks, style |
 | [`php-runtime`](references/php-runtime.md) | **PHP:** `php.ini` as a deployable, disclosure and session-cookie defaults, OPcache and deploy invalidation, process model, execution limits |
-| [`testing`](references/testing.md) | Hermetic suites, unit-vs-integration split, the must-test list, mutation score, oracle provenance |
+| [`testing`](references/testing.md) | Hermetic suites, unit-vs-integration split, the must-test list, mutation score, oracle provenance, test-data provenance |
 | [`security`](references/security.md) | Auth, sessions & revocation, input validation & SSRF, CSRF, path traversal, secrets, rate limits, storage |
 | [`data-integrity`](references/data-integrity.md) | Atomic claims, fencing tokens, idempotency, expand/migrate/contract, terminal-state guards, cleanup |
 | [`resilience`](references/resilience.md) | Timeouts, bounded retry, degradation ladders, watchdogs, shedding, readiness & drain |

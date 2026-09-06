@@ -68,7 +68,7 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
 | [`php-typing.md`](php-typing.md) | **PHP:** `strict_types` as a call-site-scoped all-or-nothing control, analyser level, `mixed` and suppression policy, backed enums, comparison and identity |
 | [`php-packaging.md`](php-packaging.md) | **PHP:** the platform Composer declares but cannot enforce, lockfile and install modes, extensions, plugin allowlist, PSR-4 autoloading, tasks, style |
 | [`php-runtime.md`](php-runtime.md) | **PHP:** interpreter configuration as a deployable — the settings that decide whether written code executes, disclosure, session-cookie defaults, OPcache and deploy invalidation, process model, execution limits |
-| [`testing.md`](testing.md) | The clean-checkout guarantee (hermetic suites), integration-first split, the must-test list, contract-pinning tests |
+| [`testing.md`](testing.md) | The clean-checkout guarantee (hermetic suites), integration-first split, the must-test list, contract-pinning tests, test data imported from the code rather than restated beside it |
 | [`security.md`](security.md) | Session tiers with explicit revocation blast radius, input validation & SSRF, secrets, rate limits, storage posture |
 | [`data-integrity.md`](data-integrity.md) | Stored-state correctness: atomic claims, fencing tokens, idempotency keys, terminal-state guards, migrations, cleanup |
 | [`resilience.md`](resilience.md) | Behaviour when dependencies fail: timeouts, bounded retry, transient-vs-terminal classification, degradation ladders, watchdogs |

@@ -146,7 +146,7 @@ backlog row.
 | `php-typing.md` | **PHP:** `declare(strict_types=1)` as a call-site-scoped, all-or-nothing control; analyser level; `mixed` and suppression policy; boundary parsing; backed enums; comparison and identity |
 | `php-packaging.md` | **PHP:** Composer platform declaration vs the host that runs the code, lockfile and install modes, extension declaration, plugin allowlist, PSR-4 autoloading, task vocabulary, style baseline |
 | `php-runtime.md` | **PHP:** interpreter configuration as a deployable artifact — the `php.ini` settings that decide whether written code executes, disclosure settings, session-cookie defaults, OPcache and deploy invalidation, the request-per-process model and what inverts it, PHP-level execution limits |
-| `testing.md` | Hermeticity, unit vs integration, what must be tested, contract-pinning tests |
+| `testing.md` | Hermeticity, unit vs integration, what must be tested, contract-pinning tests, where test data and expected values come from |
 | `security.md` | AuthN/Z, sessions & revocation, input validation, secrets, transport, rate limits |
 | `data-integrity.md` | Stored-state correctness: atomic claims, fencing, idempotency, terminal guards, migrations, cleanup |
 | `resilience.md` | Behaviour when dependencies fail: timeouts, retries, degradation ladders, watchdogs, backpressure, delivery redundancy |
