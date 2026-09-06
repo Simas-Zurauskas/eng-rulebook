@@ -1,6 +1,6 @@
 # Code Comment Standard — for wiki-system projects
 
-> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 2 (2026-09-06)
 > **Audience:** AI agents and humans writing or reviewing code.
 > **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 > Loaded on demand via the skill's routing table (SKILL.md). A reference, not a prompt —
@@ -30,13 +30,13 @@ This applies to any project with the **wiki-system setup**:
 If your docs are generated from your code, this standard tells you what is left for comments
 to do. **That is a much smaller job than most codebases assume.**
 
-**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-09-06;
 re-verify anything older than 12 months (`_authoring.md` rule 6).*
 
 | Anchor | Version / status |
 | --- | --- |
 | OpenAPI Specification | The version pin is `api-contracts-and-codegen.md` §0's lane — read it there rather than duplicating it; this standard cites the spec only as an example of machine-consumed text. **"Swagger" is not a synonym:** Swagger 2.0 was donated to the OpenAPI Initiative in 2015 and became OAS 2.0, so a "Swagger" search answers a 3.x question with 2.0-era material |
-| ESLint | **v10.x current** (first release 2026-02-06); v9.x in maintenance, EOL from 2026-08-06. The `-- <reason>` description syntax on `eslint-disable*` directives exists **since v7.0.0 (May 2020)** — §3.1's "always include a reason" is available on every supported version |
+| ESLint | **v10.x current** (first release 2026-02-06); v9.x **end-of-life since 2026-08-06** — v10 is the only maintained line, and the version pin is `tooling-and-workspace.md` §0's lane. The `-- <reason>` description syntax on `eslint-disable*` directives exists **since v7.0.0 (May 2020)** — §3.1's "always include a reason" is available on every supported version |
 | TypeScript directives | `@ts-expect-error` **since TypeScript 3.9 (May 2020)**; `@ts-ignore` still accepted. Current line **7.0, GA 8 July 2026** (the native port); 6.0 (23 March 2026) was the last JavaScript-based release. Neither changes these two directives. Compiler strictness is `type-safety.md`'s lane |
 | "RFC" as used in §4.4 and §5.2 | Means an **in-repo design-proposal document**, not an IETF RFC. This standard cites no IETF document; a reader who resolves the word to an RFC number has misread the rule and will whitelist the wrong references |
 
@@ -120,12 +120,21 @@ prose culls. It is not prose.
     errors, it just never reaches consumers. Record the glob in Appendix A.
   - **Know where it ships.** If clients codegen from it, that text reaches other repos and
     other teams.
-- **String literals that feed the spec** (schema `description:` fields and similar). They look
-  like documentation; they are build input.
-- **Directive reasons** — `eslint-disable`/`ts-expect-error`/`@ts-ignore`. The reason string is
-  the only record of why the rule is off. **Always include one**; a bare directive is a defect.
-  ESLint reads a description only after a ` -- ` separator (v7.0.0+); without it the words are
-  parsed as rule names, not prose, and the reason is silently lost.
+- **String literals that feed the spec** (schema `description:` fields). Documentation-shaped, build input.
+- **Directive reasons** — a suppression comment is machine-consumed text, and the reason beside it
+  is the only record of why the rule is off. **Always include one**; a bare directive is a defect.
+  Two obligations ride on every directive: **name what is suppressed** (a rule id or error code —
+  without it it silences future, unrelated failures on that line forever), and **say why**.
+
+  | Stack | Directive | Naming the target, and where the reason goes |
+  | --- | --- | --- |
+  | TypeScript | `eslint-disable*`, `@ts-expect-error`, `@ts-ignore` | the rule name on `eslint-disable`; ESLint reads a description only after a ` -- ` separator (v7.0.0+), and without it the words parse as rule names and the reason is silently lost |
+  | Python | `# noqa`, `# type: ignore`, `# pragma: no cover` | `# noqa: E501`, `# type: ignore[arg-type]` — **bare forms suppress the whole line**; reason follows the code |
+  | PHP | `@phpstan-ignore`, `@psalm-suppress`, `@var` | the error identifier; reason on the preceding line |
+
+  **Prefer the expecting form where the tool has one** (`@ts-expect-error`, or an analyser's
+  unused-suppression reporting): it fails when the suppressed problem *stops* occurring, so a
+  directive cannot outlive its cause. A plain ignore never expires.
 
 > **Litmus:** if deleting the text changes a build output or a shipped artifact, it is spec.
 > It is not subject to §4.
@@ -284,7 +293,10 @@ numbers are wrong within a week.
 - **Prefer positive, present-tense statements of the current design.** Avoid archaeology
   ("no longer", "anymore", "used to", "was renamed from") — it dates instantly and describes a
   system the reader cannot see. State what *is*.
-- Formatters do **not** reflow comments regardless of print width. Wrap them yourself.
+- **Know whether your formatter reflows comment text, and let that decide who wraps.** Most leave
+  comment prose as written, so the author wraps to the project's width; some reflow by default,
+  and there hand-wrapping is undone on the next format run — a churning diff nobody authored.
+  Check the formatter you actually run: this is a per-toolchain fact, not a universal one.
 - **No `TODO`/`FIXME`/`XXX`/`HACK` markers.** They are unowned, undated, and unactionable, and
   they decay into noise that trains readers to skip comments. Either fix it, or write a real
   §3.4 comment explaining the deliberate gap.
@@ -393,7 +405,11 @@ Cheap CI checks that make this standard enforceable rather than aspirational:
 - **[comment-standard.GR3]** **Pin every cross-repo mirror with a test on both sides** (§3.3). Each un-pinned mirror is a
   silent production failure waiting for a rename.
 - **[comment-standard.GR4]** **Fail CI on a stale generated artifact** — re-run codegen and diff. Catches §7's shipped lie.
-- **[comment-standard.GR5]** **Reject bare `eslint-disable`/`ts-expect-error` without a reason** (§3.1).
+- **[comment-standard.GR5]** **Reject bare suppression directives without a target and a reason** (§3.1).
+  Per stack: `eslint-disable`/`ts-expect-error` (TypeScript); ruff `PGH003` and `PGH004`, which reject
+  bare `# type: ignore` and bare `# noqa` (Python); the analyser's blanket-suppression and
+  unused-suppression reporting (PHP). Same obligation, three spellings — and in Python and PHP the
+  bare form is the common one, because the tools accept it silently.
 
 ---
 

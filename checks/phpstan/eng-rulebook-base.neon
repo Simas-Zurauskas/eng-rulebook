@@ -1,0 +1,43 @@
+# eng-rulebook — PHPStan baseline. INCLUDE it, don't copy.
+#
+#   # phpstan.neon
+#   includes:
+#       - path/to/eng-rulebook-base.neon
+#   parameters:
+#       paths: [src]
+#
+# Enforces php-typing.md §2.2 (the level floor) and §2.4 (mixed and untyped signatures).
+#
+# WHY A BASELINE FILE AT ALL: PHPStan's default level is 0, and level 0 is close to silent.
+# Verified on PHPStan 2.2.13 — a file containing an untyped method, an undefined-offset read and
+# a method call on an unknown type reports "[OK] No errors" at the default level. A project that
+# "has PHPStan" and never wrote a level has a green pipeline and no analysis. The level is the
+# entire control, so it is stated here rather than left to a command-line flag that can be dropped.
+
+parameters:
+    # The floor is the maximum level. Adopt lower only by staged migration, with the deviation
+    # and its exit date recorded in the project profile (php-typing.md §2.2).
+    level: 10
+
+    # php-typing.md §8.3 — analysis must assume the runtime that actually serves traffic.
+    # MUST equal composer.json's platform pin and the deploy runtime. Four declarations of one
+    # fact, coupled by nothing in the format.
+    phpVersion: 80400
+
+    # php-typing.md §3 — a suppression that no longer suppresses anything is a standing licence
+    # to break the line. Both of these turn that into a build failure.
+    reportUnmatchedIgnoredErrors: true
+    treatPhpDocTypesAsCertain: false
+
+    # php-typing.md §2.4 — PHP has no native generics, so a bare `array` in a signature tells the
+    # analyser nothing. In PHPStan 1.x this was two opt-in switches
+    # (checkMissingIterableValueType, checkGenericClassInNonGenericObjectType); in 2.x BOTH were
+    # removed as separate options and folded into the level — they are on from level 6 upward.
+    # Setting them here is a hard configuration error on 2.x, which is why they are named in a
+    # comment rather than as keys: a config copied from 1.x-era guidance fails to load, and a
+    # config that merely drops them silently loses the check on any level below 6.
+
+    # NOTE ON `baseline`: a baseline file is a debt ledger, not configuration (php-typing.md §2.3).
+    # If you add one, it MUST shrink or hold, its entry count MUST be printed on every run, and it
+    # MUST NOT be regenerated wholesale to clear a failing build — that one operation silently
+    # re-accepts everything the level just caught.

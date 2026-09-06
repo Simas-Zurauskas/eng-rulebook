@@ -34,7 +34,7 @@ Re-run this mapping when either side moves: a new ASVS
 
 | Chapter | Covered by | Verdict |
 | --- | --- | --- |
-| **V1 Encoding and Sanitization** | `security.md` §5.1, §7; `web-client.md` §5.1, §5.2, §5.3; `ai-features.md` §4.3 | **partial** — encoding, injection prevention and sanitiser quality are stated. **Missing: safe deserialization** — no rule anywhere on deserializing attacker-influenced serialized data. Unmanaged-memory requirements are inapplicable to the assumed managed-TypeScript stack (`security.md` §0) |
+| **V1 Encoding and Sanitization** | `security.md` §5.1, §5.7, §7; `web-client.md` §5.1, §5.2, §5.3; `ai-features.md` §4.3 | **covered** — encoding, injection prevention and sanitiser quality are stated, and **safe deserialization is now `security.md` §5.7** (object-graph codecs, YAML, XML entity expansion, archive extraction), closing gap C2. Unmanaged-memory requirements are inapplicable to the assumed managed stacks (`security.md` §0) |
 | **V2 Validation and Business Logic** | `security.md` §5.1, §5.2, §8; `type-safety.md` §5; `data-integrity.md` §7, §9; `ai-features.md` §6.1 | **covered** — boundary parsing, per-field caps, business-logic state guards, quota/anti-automation budgets |
 | **V3 Web Frontend Security** | `web-client.md` §5, §6, §7, §2.1; `security.md` §2.7, §7 | **covered** — this chapter is a whole lane's subject |
 | **V4 API and Web Service** | `api-contracts-and-codegen.md` §8, §9, §11; `security.md` §5.1, §8 | **partial** — HTTP semantics, mount topology and closed request bodies are stated. **Missing: HTTP message-structure validation** (request smuggling, header injection), **GraphQL**, and **WebSocket** — no rule in any lane names them |
@@ -52,7 +52,7 @@ Re-run this mapping when either side moves: a new ASVS
 | **V16 Security Logging and Error Handling** | `security.md` §11; `observability.md` §2, §3, §4, §5, §6 | **partial** — the MUST-log security-event set, structure, correlation, level discipline, masking and alarm binding are stated, as is envelope-shaped error handling (`api-contracts-and-codegen.md` §8). **Missing: log protection** — tamper-resistance, access control on logs, and shipping to an isolated system |
 | **V17 WebRTC** | — | **out of scope** — governs TURN, media and signalling servers, a platform outside the assumed shape stated in `security.md` §0 (backend API, web client, mobile app, workers). A product shipping WebRTC adopts the chapter directly; restating it here would be a lane the library does not audit |
 
-**Tally:** 6 covered · 10 partial · 0 not covered · 1 out of scope.
+**Tally (re-stated 2026-09-06):** 7 covered · 9 partial · 0 not covered · 1 out of scope. V1 moved to `covered` when §5.7 shipped in v7. **The other Missing clauses are unchanged** — this was a targeted re-verdict of one chapter, not a re-run of the mapping, and the method note above still applies.
 
 Zero `not covered` is a property of chapter-level granularity, not a clean bill of health: every
 ASVS chapter is broad enough that some rule touches it. **The real deltas are the bolded

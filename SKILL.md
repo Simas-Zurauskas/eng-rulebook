@@ -1,6 +1,6 @@
 ---
 name: eng-rulebook
-description: Engineering standards — 16 generic rulebooks loaded before building or checked against code. BUILD-TIME load (default), for nontrivial work on: API endpoints/wire contracts, auth/sessions/uploads, personal data/retention/deletion, jobs/queues/paid external calls, env or deploy config, tests, logging/metrics/alarms, dependencies/CI/build integrity, queries/indexes/caching, web client (XSS, CSRF, tokens, accessibility), mobile app, LLM or agent features, repo scaffolding, TypeScript strictness, code comments — or when the user mentions standards, guidelines or house rules; invoke /eng-rulebook <topic>. Also: /eng-rulebook check [<ref>] diff-scoped review at merge cadence; /eng-rulebook profile <topic> declare workspace facts; /eng-rulebook audit [<topic>] multi-agent verified codebase audit writing a report — use for a quality or security audit, full review, or checking code against the standards.
+description: Engineering standards — 21 generic rulebooks loaded before building or checked against code. BUILD-TIME load (default), for nontrivial work on: API endpoints/wire contracts, auth/sessions/uploads, personal data/retention/deletion, jobs/queues/paid external calls, env or deploy config, tests, logging/metrics/alarms, dependencies/CI/build integrity, queries/indexes/caching, web client (XSS, CSRF, tokens, accessibility), mobile app, LLM or agent features, repo scaffolding, code comments, and per-language lanes for TypeScript, Python and PHP (type strictness, packaging/toolchain, PHP runtime config) — or when the user mentions standards, guidelines or house rules; invoke /eng-rulebook <topic> (a bare 'python' or 'php' loads that language's whole set). Also: /eng-rulebook check [<ref>] diff-scoped review at merge cadence; /eng-rulebook profile <topic> declare workspace facts; /eng-rulebook audit [<topic>] multi-agent verified codebase audit writing a report — use for a quality or security audit, full review, or checking code against the standards.
 ---
 
 # Engineering standards router
@@ -302,6 +302,19 @@ is the table that is wrong — **add the row, never delete a route to make table
 `comment` all resolve uniquely this way; prefix matching would fail every one of them. No match, or more than
 one, → list the candidates and ask. `audit` and `all` are reserved mode words and never resolve to a file.
 
+**A bare language token loads that language's whole set.** `python` → `python-typing.md` +
+`python-packaging.md`; `php` → `php-typing.md` + `php-packaging.md` + `php-runtime.md`. These are
+the one case where multiple matches are *not* an ambiguity to ask about — someone typing
+`/eng-rulebook php` wants the PHP lane, and it is three files. Every other multi-match still asks.
+
+**Stem names are load-bearing, and the obvious ones are wrong.** The language masters are named
+`python-typing` / `php-typing`, not `python-type-safety` / `php-type-safety`, because substring
+resolution is what the router uses: a stem containing `type-safety` would make the working
+`/eng-rulebook type-safety` ambiguous, and a stem containing `tooling` would do the same to
+`/eng-rulebook tooling`. **Adding a language master means checking that its stem contains no
+existing stem** — otherwise a command that works today starts asking a question instead. `typing`
+and `packaging` collide with nothing, so no existing token regressed.
+
 | Task touches… | Read |
 | --- | --- |
 | API endpoint, wire shape, error codes, envelope, codegen | `references/api-contracts-and-codegen.md` (+ `references/security.md`) |
@@ -310,10 +323,15 @@ one, → list the candidates and ask. `audit` and `all` are reserved mode words 
 | Timeouts, retries, degradation ladders, watchdogs | `references/resilience.md` |
 | Stored-state transitions, idempotency, migrations, cleanup | `references/data-integrity.md` |
 | Env vars, boot config, deploy config, build/runtime coupling | `references/config-and-environment.md` |
-| Writing or reviewing tests | `references/testing.md` |
+| Writing or reviewing tests | `references/testing.md` (+ the language's typing master, whose strictness floor the suite runs under) |
 | Logging, metrics, alarms, correlation ids | `references/observability.md` |
-| New repo or project scaffold, scripts, lint/format, CI parity | `references/tooling-and-workspace.md` + `references/type-safety.md` + `references/testing.md` |
-| `any`/casts, strictness flags, schema-derived types | `references/type-safety.md` |
+| New repo or project scaffold, scripts, lint/format, CI parity | `references/tooling-and-workspace.md` + `references/testing.md` + **the language's pair**: `type-safety.md` (TypeScript) · `python-typing.md` + `python-packaging.md` · `php-typing.md` + `php-packaging.md` + `php-runtime.md` |
+| **TypeScript:** `any`/casts, strictness flags, schema-derived types | `references/type-safety.md` |
+| **Python:** type checker choice/strictness, `Any`, `cast()`, `# type: ignore`, boundary parsing, exhaustiveness | `references/python-typing.md` |
+| **Python:** interpreter floor, uv/poetry/pdm, lockfile, venv, task runner, ruff, `src/` layout, wheels | `references/python-packaging.md` (+ `references/tooling-and-workspace.md`) |
+| **PHP:** `declare(strict_types=1)`, PHPStan/Psalm level, `mixed`, backed enums, `==` vs `===`, `hash_equals` | `references/php-typing.md` |
+| **PHP:** Composer, platform pin, lockfile, `ext-*`, plugins, PSR-4 autoloading, PER-CS style | `references/php-packaging.md` (+ `references/tooling-and-workspace.md`) |
+| **PHP:** `php.ini`, OPcache and deploy invalidation, FPM, session-cookie defaults, request-per-process vs long-running workers | `references/php-runtime.md` |
 | Mobile app: session/push lifecycle, OTA vs binary, store & native build, permissions | `references/mobile-app.md` |
 | Code comments, doc references in code | `references/comment-standard.md` |
 | Personal data: what you collect, retention, deletion/export, egress to third parties, residency, consent | `references/data-protection.md` (+ `references/security.md`) |

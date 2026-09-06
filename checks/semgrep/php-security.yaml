@@ -1,0 +1,101 @@
+# Semgrep rules for references/security.md (PHP).
+#
+# Rule ids are `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
+# failure is traceable to a line of the standard rather than to an unexplained id.
+# Validated against 3,441 .php files from three mature projects — see checks/README.md § Validation.
+
+rules:
+  - id: eng-rulebook.security.php-unserialize-no-allowlist
+    languages: [php]
+    severity: ERROR
+    message: >-
+      eng-rulebook/security.md §5.7: unserialize() with no allowed_classes option. PHP's
+      object-graph format instantiates whatever the payload names, so a caller-influenced string
+      reaches __wakeup()/__destruct() on classes you did not choose — the POP-chain surface. Pass
+      the allowlist explicitly: unserialize($s, ['allowed_classes' => false]) yields
+      __PHP_Incomplete_Class instead of instantiating, and a named array allows only what you
+      list. Where the payload is your own (cache, queue), it still needs an integrity tag (§6)
+      proving this process wrote it. Prefer a self-describing format with no object semantics.
+    pattern-either:
+      - pattern: unserialize($X)
+      - pattern: \unserialize($X)
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"
+  - id: eng-rulebook.security.php-extract-into-scope
+    languages: [php]
+    severity: ERROR
+    message: >-
+      eng-rulebook/php-typing.md §8.2 (analyser blindness) and security.md §5.1 (boundary admission): extract() creates local variables from array keys. On
+      caller-influenced data it lets the caller name the variables in your scope, overwriting
+      anything already there — including a flag a check above just set. There is no safe
+      configuration of this on untrusted input; read the keys you want by name.
+    pattern-either:
+      - pattern: extract(...)
+      - pattern: \extract(...)
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"
+  - id: eng-rulebook.security.php-dynamic-code-execution
+    languages: [php]
+    severity: ERROR
+    message: >-
+      eng-rulebook/php-typing.md §8.2: dynamic code execution. eval() and create_function() compile
+      a string as PHP; if any part of that string is caller-influenced this is remote code
+      execution, and the analyser can see nothing inside it either (php-typing.md §8.2). Replace
+      with an explicit dispatch table keyed on a validated closed set (php-typing.md §5).
+    pattern-either:
+      - pattern: eval(...)
+      - pattern: create_function(...)
+      - pattern: \create_function(...)
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"
+  - id: eng-rulebook.security.php-shell-execution
+    languages: [php]
+    severity: WARNING
+    message: >-
+      eng-rulebook/security.md §5.9: shell execution. Surface-it, not a ban — legitimate uses
+      exist. Show that no caller-influenced value reaches the command string: pass an argument
+      array where the API supports it, and escapeshellarg() every interpolated value otherwise.
+      escapeshellcmd() is NOT a substitute; it leaves argument boundaries intact.
+    pattern-either:
+      - pattern: exec(...)
+      - pattern: \exec(...)
+      - pattern: shell_exec(...)
+      - pattern: \shell_exec(...)
+      - pattern: system(...)
+      - pattern: \system(...)
+      - pattern: passthru(...)
+      - pattern: \passthru(...)
+      - pattern: popen(...)
+      - pattern: \popen(...)
+      - pattern: proc_open(...)
+      - pattern: \proc_open(...)
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"

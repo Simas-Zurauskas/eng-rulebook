@@ -1,6 +1,6 @@
 # Resilience Standard
 
-> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 2 (2026-09-06)
 > **Audience:** AI agents and humans writing or reviewing code.
 > **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
@@ -16,7 +16,7 @@
 
 Every code path that leaves the process — vendor HTTP APIs, database drivers, object
 storage, dispatch loops, detached workers, push delivery — and every client that waits on
-the results. Assumed context: a multi-repo TypeScript workspace (backend API, web and mobile
+the results. Assumed context: a multi-repo workspace whose services are TypeScript, Python or PHP (backend API, web and mobile
 clients, worker(s)) where at least one pipeline **spends real money per step** on an
 external vendor, so a lost step is a lost payment.
 
@@ -29,7 +29,7 @@ Not this standard's lane (cross-refs only):
   `observability.md`. This standard says **which** events must emit a signal; that one owns
   what the signal looks like.
 
-**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-09-06;
 re-verify anything older than 12 months (`_authoring.md` rule 6).*
 
 | Anchor | Version / status |
@@ -116,11 +116,12 @@ forever. Count-bounds are for *submissions* (§4.3); budgets are for *waiting*.
 ### 4.1 Bounded, with backoff and jitter
 
 Every retry loop MUST have a hard attempt cap and MUST back off with **jitter** — full
-jitter is the default choice (AWS Architecture Blog, "Exponential Backoff and Jitter";
-Amazon Builders' Library, "Timeouts, Retries, and Backoff with Jitter"). Unjittered retries
+jitter is the default choice (AWS Architecture Blog, "Exponential Backoff And Jitter";
+Amazon Builders' Library, "Timeouts, retries, and backoff with jitter"). Unjittered retries
 re-spike the recovering dependency — the retry-storm antipattern (Azure Architecture
-Center). Retry only *transient* outcomes; honour the dependency's `Retry-After` when sent
-(AWS Well-Architected REL05-BP03, "Control and limit retry calls").
+Center). Retry only *transient* outcomes (AWS Well-Architected REL05-BP03, "Control and limit retry calls");
+honour the dependency's `Retry-After` when sent (Azure Architecture Center, "Transient Fault
+Handling").
 
 ### 4.2 Only idempotent or deduplicated operations retry
 
@@ -301,6 +302,44 @@ Which surface does which is a design decision, recorded in Appendix A beside its
   window, then exit. An instance that exits on SIGTERM drops whatever it was mid-way through —
   for queue work that is §12's reclaim obligation; for a request in flight there is no reclaim, so
   the drain window *is* the control. Probe endpoint shape: `api-contracts-and-codegen.md` §10.
+
+---
+
+## 10. Cancellation must propagate — the async-runtime form
+
+A deadline (§2) is only real if the cancellation it triggers actually unwinds the work. Two
+language mechanisms swallow it, and in both the symptom is a **hang**, not an error — the failure
+mode this standard exists to convert into a loud one.
+
+- **Never catch the runtime's cancellation signal in a cleanup path.** In Python
+  `asyncio.CancelledError` inherits from `BaseException`, **not** `Exception` (verified:
+  `issubclass(asyncio.CancelledError, Exception)` is `False`). So `except Exception:` correctly
+  lets it through, while `except BaseException:`, a bare `except:`, or
+  `contextlib.suppress(BaseException)` in a `finally` swallows it — and `asyncio.timeout` then
+  returns nothing while the task keeps running. If you catch it, re-raise it.
+- **A fire-and-forget task may never run.** CPython documents that the event loop keeps only
+  *weak* references to tasks: "A task that isn't referenced elsewhere may get garbage collected at
+  any time, even before it's done." Hold a strong reference, or use a task group that holds one
+  for you and propagates the children's exceptions. Enforced by ruff `RUF006`
+  (`checks/ruff/eng-rulebook-base.toml`).
+- **Gathering results is not supervising them.** `asyncio.gather(..., return_exceptions=False)`
+  propagates the first exception to the awaiting task and, per CPython's documentation, the other
+  awaitables "won't be cancelled and will continue to run". The idiomatic gather-catch-return-500
+  therefore leaves orphaned work still writing to the store after the response is sent — a
+  data-integrity problem (`data-integrity.md`), reached through a resilience mistake. Use a
+  supervising construct that cancels siblings on first failure.
+
+- **A blocking call on an event loop stalls every deadline it was supposed to enforce.** A
+  single-threaded async runtime runs one callback at a time, so a synchronous DB driver, a
+  blocking HTTP client, `sleep`, file I/O or CPU-bound work inside an `async` path freezes every
+  other in-flight operation for its duration — including the timers implementing §2's timeouts.
+  Use an async-native client, or hand the blocking call to a thread/executor. Partly mechanised:
+  ruff's `ASYNC2xx` family (`checks/ruff/eng-rulebook-base.toml`) catches the well-known blocking
+  callees; CPU-bound work and unknown sync drivers it cannot see, so the rule is stated as well
+  as enforced.
+
+The same obligation applies wherever a runtime models cancellation; the mechanism differs and the
+rule does not. The profile records which async runtime each deployable uses.
 
 ---
 

@@ -1,0 +1,105 @@
+# Semgrep rules for references/php-typing.md.
+
+rules:
+  - id: eng-rulebook.php-typing.loose-compare-digest
+    languages: [php]
+    severity: ERROR
+    message: >-
+      eng-rulebook/php-typing.md §6.2: loose comparison of a digest or token. PHP 8 removed the
+      classic string-vs-number juggling bypasses, but NUMERIC-STRING coercion survives: two
+      different digests that both match 0e\d+ compare EQUAL, because both are read as scientific
+      notation for zero. Verified on PHP 8.5.10 —
+      "0e462097431906509019562988736854" == "0e830400451993494058024219903391" is true.
+      Use hash_equals(), which is both type-strict and constant-time; === removes the collision
+      but not the timing side-channel.
+    # Both the bare and the namespace-escaped form (`\md5(...)`). Namespaced PHP code
+    # routinely writes the escaped form, and a pattern that omits it silently under-reports
+    # in exactly the codebases most likely to be namespaced.
+    pattern-either:
+      - pattern: $A == md5(...)
+      - pattern: md5(...) == $A
+      - pattern: $A != md5(...)
+      - pattern: md5(...) != $A
+      - pattern: $A <> md5(...)
+      - pattern: md5(...) <> $A
+      - pattern: $A == \md5(...)
+      - pattern: \md5(...) == $A
+      - pattern: $A != \md5(...)
+      - pattern: \md5(...) != $A
+      - pattern: $A <> \md5(...)
+      - pattern: \md5(...) <> $A
+      - pattern: $A == sha1(...)
+      - pattern: sha1(...) == $A
+      - pattern: $A != sha1(...)
+      - pattern: sha1(...) != $A
+      - pattern: $A <> sha1(...)
+      - pattern: sha1(...) <> $A
+      - pattern: $A == \sha1(...)
+      - pattern: \sha1(...) == $A
+      - pattern: $A != \sha1(...)
+      - pattern: \sha1(...) != $A
+      - pattern: $A <> \sha1(...)
+      - pattern: \sha1(...) <> $A
+      - pattern: $A == hash(...)
+      - pattern: hash(...) == $A
+      - pattern: $A != hash(...)
+      - pattern: hash(...) != $A
+      - pattern: $A <> hash(...)
+      - pattern: hash(...) <> $A
+      - pattern: $A == \hash(...)
+      - pattern: \hash(...) == $A
+      - pattern: $A != \hash(...)
+      - pattern: \hash(...) != $A
+      - pattern: $A <> \hash(...)
+      - pattern: \hash(...) <> $A
+      - pattern: $A == crypt(...)
+      - pattern: crypt(...) == $A
+      - pattern: $A != crypt(...)
+      - pattern: crypt(...) != $A
+      - pattern: $A <> crypt(...)
+      - pattern: crypt(...) <> $A
+      - pattern: $A == \crypt(...)
+      - pattern: \crypt(...) == $A
+      - pattern: $A != \crypt(...)
+      - pattern: \crypt(...) != $A
+      - pattern: $A <> \crypt(...)
+      - pattern: \crypt(...) <> $A
+      - pattern: $A == hash_hmac(...)
+      - pattern: hash_hmac(...) == $A
+      - pattern: $A != hash_hmac(...)
+      - pattern: hash_hmac(...) != $A
+      - pattern: $A <> hash_hmac(...)
+      - pattern: hash_hmac(...) <> $A
+      - pattern: $A == \hash_hmac(...)
+      - pattern: \hash_hmac(...) == $A
+      - pattern: $A != \hash_hmac(...)
+      - pattern: \hash_hmac(...) != $A
+      - pattern: $A <> \hash_hmac(...)
+      - pattern: \hash_hmac(...) <> $A
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"
+  - id: eng-rulebook.php-typing.error-suppression-operator
+    languages: [php]
+    severity: WARNING
+    message: >-
+      eng-rulebook/php-typing.md §7: the @ operator suppresses diagnostics for the whole
+      expression, including failures nobody anticipated, and leaves no record that anything went
+      wrong. Check the precondition instead, or catch the specific Throwable. A suppressed error
+      is a silent degradation (observability.md §2).
+    pattern: "@$EXPR"
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"

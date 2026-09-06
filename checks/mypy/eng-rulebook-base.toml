@@ -1,0 +1,46 @@
+# eng-rulebook — mypy strictness baseline. MERGE into your pyproject.toml, don't copy blindly.
+#
+# Enforces python-typing.md §2.2 (the floor) and §2.3 (the invisible function).
+#
+# WHY THIS IS NOT JUST `strict = true`:
+#   `--strict` is a moving bundle — mypy documents that its contents may change between releases
+#   — and it omits two flags this standard requires. Both are listed explicitly below so the
+#   baseline states what it means rather than deferring to a name.
+#
+# Verified against mypy 2.3.1. Pin your mypy version: mypy 2.0 changed three defaults
+# (local_partial_types, strict_bytes, allow_redefinition).
+
+[tool.mypy]
+python_version = "3.14"          # MUST equal requires-python (python-packaging.md §2.1)
+
+strict = true                    # the bundle; see below for what it does NOT include
+
+# --- required ON TOP of `strict` (python-typing.md §2.2) ---------------------------------------
+warn_unreachable      = true     # not in --strict
+disallow_any_explicit = true     # not in --strict — §3's ban on `Any` in new code
+
+# --- stated explicitly because they are the §2.3 control, and a reader must see them ------------
+# Both are inside `strict` today. They are repeated here because `check_untyped_defs` defaults to
+# FALSE, and its absence is the single highest-impact silent hole in Python type checking: the
+# BODY of an unannotated function is not analysed at all. Verified on mypy 2.3.1 — an
+# unambiguous `int.upper()` error inside an unannotated function is reported by
+# `--check-untyped-defs` and NOT reported by default.
+check_untyped_defs    = true
+disallow_untyped_defs = true
+
+# --- the ratchet --------------------------------------------------------------------------------
+warn_unused_ignores   = true     # a suppression that outlived its cause fails the build
+
+# --- untyped dependencies (python-typing.md §2.4) -----------------------------------------------
+# Do NOT set `ignore_missing_imports = true` globally: it silences every dependency, including
+# ones that later ship types, and `Any` then propagates out of each call site into your code.
+# Scope it per module, with the reason, and revisit.
+#
+#   [[tool.mypy.overrides]]
+#   module = ["some_untyped_dep.*"]
+#   ignore_missing_imports = true   # no py.typed as of <date>; wrapper at app/vendor/dep.py
+disallow_any_unimported = true
+
+# --- tests are product code for typing purposes -------------------------------------------------
+# A test suite excluded from the checker is where untyped helpers accumulate and then get
+# imported by product code.

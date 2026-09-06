@@ -1,0 +1,41 @@
+# Semgrep rules for references/php-runtime.md §5.2 — the PHP form of resilience.md §2.
+
+rules:
+  - id: eng-rulebook.php-runtime.curl-without-timeout
+    languages: [php]
+    severity: WARNING
+    message: >-
+      eng-rulebook/php-runtime.md §5.2, resilience.md §2: a cURL handle with no explicit deadline.
+      max_execution_time is not a substitute — it differs per SAPI and the CLI default is 0
+      (unlimited), so a queue worker inherits no bound at all. Set BOTH CURLOPT_CONNECTTIMEOUT and
+      CURLOPT_TIMEOUT on every handle; a connect timeout alone still allows an unbounded read.
+    patterns:
+      # Bare and namespace-escaped: namespaced PHP writes `\curl_init()`, and omitting that form
+      # makes this rule silently blind in most modern libraries.
+      - pattern-either:
+          - pattern: curl_init(...)
+          - pattern: \curl_init(...)
+      # SUPPRESSION LIMITS, MEASURED — do not "improve" these without re-running the fixture.
+      # Two tighter forms were tried and BOTH suppressed every match, including true positives:
+      #   * `\curl_init` / `\curl_setopt` inside pattern-not-inside
+      #   * `curl_setopt_array($CH, [..., CURLOPT_TIMEOUT => ..., ...])`
+      # So two residuals ship knowingly, and the rule is WARNING (surface-it) partly because of
+      # them: (a) a namespaced file that sets the timeout via `\curl_setopt` is a false positive;
+      # (b) any `curl_setopt_array` suppresses, whether or not it names a timeout key.
+      - pattern-not-inside: |
+          $CH = curl_init(...);
+          ...
+          curl_setopt($CH, CURLOPT_TIMEOUT, ...);
+      - pattern-not-inside: |
+          $CH = curl_init(...);
+          ...
+          curl_setopt_array($CH, ...);
+    paths:
+      exclude:
+        - "*Test.php"
+        - "Tests/"
+        - "tests/"
+        - "spec/"
+        - "examples/"
+        - "benchmarks/"
+        - "vendor/"

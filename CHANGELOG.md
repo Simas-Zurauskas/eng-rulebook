@@ -32,6 +32,211 @@ reordering would not close it.
 
 ---
 
+## v7 — 2026-09-06
+
+**The library becomes multi-language: Python and PHP join TypeScript as first-class lanes, and
+every external anchor in the library was re-verified.** Two changes ship together because the
+second is what made the first honest — re-checking 514 anchors across the 16 existing rulebooks
+found 31 real drifts, including one that made a rule unsatisfiable.
+
+**ADDS** · Touches: all 21 rulebooks
+Five new masters, one new rule and one new sub-rule in `security.md`, one new sub-rule in
+`type-safety.md`, and per-language examples in six existing guard rails. Code that was compliant
+may now be non-compliant — a Python or PHP repo that previously matched no rule at all now
+matches a lane.
+
+### Why separate masters, and not branches inside the existing ones
+
+The test in `_authoring.md` rule 7a is **not** "the tools differ" — it is "the obligations differ
+in kind". They do, and the difference is structural rather than cosmetic:
+
+| Language | The type gate | Default state |
+| --- | --- | --- |
+| TypeScript | `tsc` | `strict` is the **compiler default** (6.0+) — a repo must opt *out* |
+| Python | an external checker, invoked by choice | none runs; and `mypy` without `--strict` **does not check the body of an unannotated function at all** |
+| PHP | `declare(strict_types=1)` + an analyser level | the declaration is **per-calling-file** and absent by default; PHPStan's level defaults to **0** |
+
+TypeScript is the only one of the three whose safe state is the default. `type-safety.md`'s core
+principle — *"the compiler only proves what you never assert"* — presumes a gate that is already
+on, so genericising it would have produced a master that is vacuous in all three languages. Three
+different rules, not one rule with three examples.
+
+Each behavioural claim in the new masters was **executed**, not read: the mypy skipped-body
+result, the PHP call-site scoping of `strict_types`, PHPStan's silent level 0, and the assertion
+elision under `python -O` and `zend.assertions=-1` are all quoted from runs on the versions in
+each §0 anchor table.
+
+- **`python-typing.md`** · **`python-packaging.md`** — checker floor and the invisible-function
+  hole; interpreter floor, lockfile, venv discipline, the task vocabulary `pyproject.toml` does
+  not provide, `src/` layout, wheel/ABI contract.
+- **`php-typing.md`** · **`php-packaging.md`** · **`php-runtime.md`** — PHP gets **three**
+  because it has a subject the others do not: interpreter configuration that decides whether
+  written code executes. Verified — with no `php.ini` at all, every session-cookie protection is
+  off and `display_errors` is on; the vendor's own `php.ini-production` template fixes error
+  display and still leaves `expose_php` on and all three cookie flags unset. Symmetry between
+  languages is explicitly not a goal (`_authoring.md` rule 7a).
+
+### New obligations in existing rulebooks
+
+- **`security.md` §5.7 — safe deserialization of non-JSON formats.** Closes gap **C2**. Stated at
+  the *call site*, never by runtime default: Python's tarfile filter became safe only in 3.14 and
+  PyYAML made `Loader` required in 6.0, so a rule resting on either default is wrong on the other
+  side of that boundary. Moves ASVS **V1 from `partial` to `covered`**.
+- **`security.md` §5.8 — a control the runtime is configured to remove is not a control.** New
+  gap **C11**, closed in the same release. `assert` is elided by `python -O` and by
+  `zend.assertions=-1`, and the latter is the value in the `php.ini-production` template PHP
+  itself ships. The check passes every test and is absent from the running process.
+- **`type-safety.md` §2.4 — the compiler and the type-aware linter must be jointly satisfiable.**
+  This one is a **defect the anchor re-verification found in this library**: typescript-eslint's
+  `latest` declares `peerDependencies.typescript` as `>=4.8.4 <6.1.0`, while §0 anchors
+  TypeScript 7.0 as current. GR2 and §0 could not both be satisfied by any repo. The rule now
+  requires the repo to pick a side and record it with an exit date, and GR2 gains a fixture
+  assertion — because a peer-range mismatch makes type-aware rules stop applying *without
+  failing anything*, so the rail's green result was indistinguishable from the rail not running.
+
+### Anchor re-verification — 514 anchors, 31 drifts, 5 phantoms rejected
+
+Every external claim in all 16 existing rulebooks was re-checked against primary sources and each
+proposed correction independently adjudicated before it was applied. The material ones:
+
+- **OWASP Top 10 for LLM Applications 2026** (published 4 Aug 2026) supersedes the 2025 edition
+  **and renumbers most ids**. Three of `ai-features.md`'s cross-references pointed at different
+  risks than they named, and one id (LLM07 System Prompt Leakage) no longer exists.
+- **The EU AI Act Digital Omnibus** is Regulation (EU) 2026/1744, in force since 27 July 2026 —
+  the file described it as awaiting publication, which was already wrong on its own verification
+  date.
+- **ESLint v9 reached EOL on 2026-08-06**, so a v9 pin is now an unmaintained-dependency finding
+  rather than a deferred upgrade.
+- **`type-safety.md` stated the TypeScript 6.0 `strict` default backwards** — it said omitting the
+  flag opts a repo *out*; it opts a repo *in*.
+- Two citations did not support their claims: AWS REL05-BP03 does not mention `Retry-After`, and
+  Jest's documentation is versioned rather than a living unversioned document.
+- **Three corrections were refused as out of scope and re-routed**, not applied: they changed
+  obligations rather than facts. Two false universals they exposed are fixed properly here —
+  `comment-standard.md` §6 no longer claims formatters never reflow comments, and
+  `config-and-environment.md` §5 no longer claims the public prefix is the only channel into a
+  client bundle (new **GR9** greps the built artifact, and **GR5** now states what it cannot see).
+
+### Gaps a completeness critic found, and what closed them
+
+An adversarial research pass (120 claims, each independently refuted against a primary source)
+ran a completeness critic over the resulting fact base. It found real omissions, and the ones
+that survived verification shipped:
+
+- **`php-runtime.md` §6 — the document root is the router.** Any file under the web root ending
+  in `.php` is a live, unauthenticated endpoint; nothing routes to it, the server executes it
+  because it is there. No Node, Python or Go analogue exists. The rule: the server root is a
+  dedicated `public/`, and `vendor/`, `.env`, `config/`, `storage/` and `.git/` sit above it.
+- **`php-runtime.md` §7 — the input layer truncates and empties before your code runs.** Verified
+  defaults: `max_input_vars` `1000` (excess input variables are *truncated*, applied separately
+  to `$_GET`/`$_POST`/`$_COOKIE`) and `post_max_size` `8M` (over it, **`$_POST` and `$_FILES` are
+  empty**, with no exception and no 413 from PHP). Two failure shapes follow that both read as
+  application bugs: the bulk edit that silently saved 1,000 of 1,200 rows, and the "invalid CSRF
+  token" that is really a size limit.
+- **`php-typing.md` §4 — one array type, two JSON shapes.** Verified:
+  `json_encode(array_filter([1,2,3,4], …))` emits `{"1":2,"3":4}`, an object, because filtering
+  preserves keys. A one-character change moves a published response shape with no PHP-side error.
+- **`php-typing.md` §6.1 — the `false`-returning stdlib.** `preg_match` returns `1`, `0` **or
+  `false`**, so `if (preg_match($block, $in))` treats *the check having failed* as *the input
+  being clean* — a validation bypass whose trigger is input size. Stated on php.net's documented
+  contract; the backtrack overflow could **not** be reproduced on 8.5.10 under PCRE2's JIT, and
+  the rule says so rather than claiming a demonstration.
+- **`resilience.md` §10 — cancellation must propagate.** Verified:
+  `issubclass(asyncio.CancelledError, Exception)` is `False`, so `except BaseException:` in a
+  cleanup path swallows cancellation and a deadline becomes a hang. With it: the weak-reference
+  task-collection hazard `RUF006` exists for, and `gather(return_exceptions=False)` not
+  cancelling siblings.
+- **`python-typing.md` §9.4 — `open()` has no fixed default encoding**, and **PEP 686 is Final for
+  3.15**, flipping UTF-8 mode on by default within weeks of this revision — changing every
+  un-annotated `open()`, mostly toward the *correct* result, which is why nobody will notice.
+- **`python-packaging.md` §9 — the 3.14 execution model.** PEP 779 makes free-threaded builds
+  officially supported (so GIL-atomicity assumptions are now build-dependent), and `forkserver`
+  replaced `fork` as the Unix default start method (so children no longer inherit module-level
+  state). The profile must declare both, because a concurrency rule is undecidable without them.
+
+### Runnable checks — validated by execution, and it caught five defects
+
+`checks/` gains a ruff baseline, a mypy baseline, a PHPStan baseline and five semgrep rule files.
+Validated against **582 `.py` files** and **3,441 `.php` files** from six mature open-source
+projects. Running them found what reading them did not: an `unserialize` rule that matched
+**nothing** while the fixtures held 168 such calls; patterns blind to namespace-escaped PHP calls
+(`\curl_init()`), which is the form Guzzle actually uses; a zip rule that also caught tarfile; a
+path-join rule firing on string constants; and two config keys that no longer exist
+(`S320` in ruff, two removed PHPStan 2.x options). Ruff's rule selection is by measurement —
+seven plausible families were **excluded** with their counts recorded, because they produced
+hundreds of findings on idiomatic, correct code. Full record in `checks/README.md` § Validation.
+
+### What an adversarial audit of this release then found — and changed
+
+The release was audited before it shipped: seven read-only auditors across contract compliance,
+internal consistency, Python facts, PHP facts, the runnable checks, coverage and this CHANGELOG,
+every finding then independently refuted. **61 findings survived; 14 were rejected as phantoms.**
+The ones that changed obligations:
+
+- **The library had no injection rule at all — and a new pointer was hiding that.** `php-typing.md`
+  §0 routed "SQL parameterisation and injection" to `security.md` §5.1, which is boundary schema
+  validation and says nothing about bound parameters. A grep across all 21 masters found no
+  parameterised-query obligation anywhere, and `_gaps.md` had no row for it: a PHP author would
+  have followed the pointer, found a validation rule, and concluded the language's signature
+  defect class was governed. **New `security.md` §5.9** now states it across every interpreter —
+  SQL, process spawning, NoSQL operators, templates, LDAP/XPath/headers — with the ORM raw-fragment
+  escape hatch as the declared review surface, plus **`security.GR11`**.
+- **Three claims in the new masters were wrong, and all three were my own cornerstones.** Verified
+  by execution: (1) `strict_types` governs **arguments** at the call site but **returns** at the
+  *declaration* site — the headline mechanism was half the story; (2) `max_execution_time` raises
+  an **uncatchable** fatal error where `finally` does **not** run (shutdown functions do), not the
+  "catchable PHP error" the text claimed; (3) Composer **does** ship a runtime platform check —
+  `platform-check` defaults to `php-only` and emits `vendor/composer/platform_check.php` — so
+  "a copied `vendor/` tree never re-checks it" was false for the PHP version, though still true
+  for `ext-*`.
+- **The `§0` genericisation was planned and never executed.** Thirteen language-neutral masters
+  still scoped themselves to "a multi-repo TypeScript workspace" while legislating Python and PHP
+  in their own rules — so the library made multi-language in this release was formally
+  inapplicable to the languages it had just added. All thirteen now carry rule 3's wording;
+  `type-safety.md` and `web-client.md` keep a TypeScript scope deliberately and say why.
+- **Smaller corrections, each verified:** ruff *derives* `target-version` from `requires-python`
+  (so the standard's "the format couples none of them" was wrong, and the rule is now "leave it
+  unset"); mypy 2.0 changed **two** defaults and *redefined* `--allow-redefinition` rather than
+  changing three; a type checker does **not** execute module-level code; `CVE-2021-29472` is
+  Mercurial-only; pip's `--uploaded-prior-to` takes a duration as well as a datetime; and
+  `security.GR10` had mandated a CI ban that §5.8, the ruff baseline and `checks/README.md` all
+  explicitly refuse — now split into a blocking configuration assertion and a surface-it sweep.
+- **The audit's own suggested fix was wrong once, and the fixture caught it.** Tightening
+  `curl-without-timeout`'s suppressions — as recommended — **suppressed every match, including
+  true positives.** Bisected, reverted, and the two real residuals are now documented in the rule
+  file. Path exclusions were added to all five new rule files, which dropped the PHP finding count
+  from 117 to **79, all in product source**.
+
+### One known deviation, recorded rather than hidden
+
+`security.md` (517 lines) and `supply-chain-and-build-integrity.md` (485) now exceed
+`_authoring.md` rule 5's 450-line cap. Both were **already at it** before this release (449 and
+450), so any addition breaches it. The remedy rule 5 implies is a lane split, and `_gaps.md` C1
+has recorded that as a precondition since August — but a split moves sections to a new file and
+therefore re-points every citation filed against the old path, which rule 11 permits only after
+confirming no published report cites them. That is confirmable for this checkout and not for
+other installs, so the split is **deferred, with the blast radius measured** in new gap row
+**C12**: `security.md` §2 is 104 lines and 17 citations; §5 is ~150 lines and 40 citations.
+The v7 additions to both files were compressed roughly 40% and remain over. The other 19 masters
+are within range.
+
+### Router and contract
+
+- **Stem names are load-bearing.** The masters are `python-typing` / `php-typing`, not
+  `python-type-safety` / `php-type-safety`: topic resolution is substring-based, so a stem
+  containing `type-safety` would have made the working `/eng-rulebook type-safety` ambiguous.
+  No existing token regressed. `SKILL.md` now states the constraint for whoever adds the next one.
+- **A bare language token loads that language's whole set** — `/eng-rulebook php` loads three
+  files. The one case where multiple matches are not an ambiguity to ask about.
+- **`_authoring.md` rule 3** now assumes a TypeScript **and/or Python and/or PHP** workspace, and
+  **new rule 7a** states that lane ownership is keyed by (subject, language) — so three masters
+  governing "type strictness" is single-valued by construction, not a rule-7 violation.
+- **`audit.md` Phase 2** resolves its commands per language instead of hardcoding `tsc` and
+  `npm audit`, and now requires recording the *strictness setting* alongside the result: a green
+  run at either language's tool default is evidence of almost nothing.
+
+---
+
 ## v6 — 2026-08-18
 
 **An installed copy of the library is read-only, and the rule is now stated normatively.** The

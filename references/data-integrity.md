@@ -1,6 +1,6 @@
 # Data Integrity Standard
 
-> **Type:** Generic, reusable standard · **Rev:** 1 (2026-07-17)
+> **Type:** Generic, reusable standard · **Rev:** 2 (2026-09-06)
 > **Audience:** AI agents and humans writing or reviewing code.
 > **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 > Loaded on demand via the skill's routing table (SKILL.md).
@@ -15,7 +15,7 @@
 Applies whenever **more than one writer can touch a record** — multiple instances, a retrying
 client, a sweeper, a recovery path, an operator script. That is every non-trivial system.
 
-Assumed context (per `_authoring.md`): a multi-repo TypeScript workspace — a backend API that
+Assumed context (per `_authoring.md`): a multi-repo workspace whose services are TypeScript, Python or PHP — a backend API that
 owns all persistence, work driven by a DB-backed job queue calling **paid** external APIs,
 and N identical backend instances each running a dispatcher. Rules are store-agnostic;
 examples use document-store operators (e.g. MongoDB `findOneAndUpdate`) and SQL equivalents.
@@ -29,14 +29,14 @@ examples use document-store operators (e.g. MongoDB `findOneAndUpdate`) and SQL 
 - Making the failures below *visible* (wedge alarms, silent-degradation ban) →
   `observability.md`.
 
-**External anchors** — name + version + status, never URLs. *Anchors verified 2026-07-28;
+**External anchors** — name + version + status, never URLs. *Anchors verified 2026-09-06;
 re-verify anything older than 12 months (`_authoring.md` rule 6).*
 
 | Anchor | Version / status |
 | --- | --- |
 | IETF "The Idempotency-Key HTTP Header Field" | **draft-ietf-httpapi-idempotency-key-header-07 — EXPIRED 18 April 2026** (revision dated 15 Oct 2025); never published as an RFC. §6 treats it as design precedent; citing it as "the IETF spec" is a factual error, and a bare document name retrieves an expired draft |
 | Stripe idempotency keys | **Living documentation, unversioned.** Cite the *model* — random V4-UUID keys, stored first-response replay, mismatched-payload rejection, bounded key retention. Any retention window or key-format number is pinned in the profile, not here |
-| Martin Kleppmann, "How to do distributed locking" | Blog post, **8 February 2016**, unrevised. It specifies a **monotonically increasing** token checked by the storage service; §5's equality-compared random token is this file's adaptation of it and says so |
+| Martin Kleppmann, "How to do distributed locking" | Blog post, **8 February 2016**. Body unrevised except for one dated addendum ("Update 9 Feb 2016") pointing to Salvatore Sanfilippo's (antirez) rebuttal; Kleppmann stands by his conclusions there and the fencing-token argument is untouched. It specifies a **monotonically increasing** token checked by the storage service; §5's equality-compared random token is this file's adaptation of it and says so |
 | Idempotent Consumer pattern (microservices.io, Chris Richardson) | **Living pattern catalogue, unversioned and undated.** Cite the pattern name only — no clause in it is normative here |
 | MongoDB duplicate-key error | Server code **11000**, `DuplicateKey` (rendered `E11000 …` in the message text) — read from the server's own error-code registry |
 | PostgreSQL duplicate-key error | SQLSTATE **23505** `unique_violation`, class 23 Integrity Constraint Violation — stable across releases; checked against the current (18.x) error-code appendix |
@@ -45,8 +45,9 @@ re-verify anything older than 12 months (`_authoring.md` rule 6).*
 
 Processes crash mid-write. Deploys SIGTERM in-flight work. Leases expire under live workers.
 Clients retry ambiguous timeouts. Exactly-once *delivery* is unachievable; what you can build
-is at-least-once execution **plus idempotent, guarded writes** — "effectively exactly-once"
-(the Idempotent Consumer pattern, microservices.io). Duplicates and races are therefore
+is at-least-once execution **plus idempotent, guarded writes** — effectively exactly-once in
+outcome (the Idempotent Consumer pattern, microservices.io; that gloss is this file's, not
+the catalogue's). Duplicates and races are therefore
 **certainties to design for, not edge cases to apologise for**. Two consequences drive every
 rule below:
 

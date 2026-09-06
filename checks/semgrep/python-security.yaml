@@ -1,0 +1,72 @@
+# Semgrep rules for references/security.md (Python) — the gaps ruff's `S` family does not cover.
+#
+# Scope discipline: ruff is the primary Python mechanism (checks/ruff/eng-rulebook-base.toml) and
+# already covers pickle (S301), tarfile extractall (S202), `requests` without timeout (S113),
+# shell=True (S602), unsafe YAML loaders (S506) and the XML family (S313-S320). Duplicating those
+# here would imply two mechanisms where there is one. These rules exist because ruff 0.16.6 has no
+# equivalent — verified by running ruff over the same fixture; see checks/README.md § Validation.
+#
+# Rule ids are `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces.
+
+rules:
+  - id: eng-rulebook.security.python-zip-extract-unbounded
+    languages: [python]
+    severity: WARNING
+    message: >-
+      eng-rulebook/security.md §5.7: zip extraction with no bounds check. Unlike `tarfile`,
+      `zipfile` has NO `filter=` parameter at any Python version — there is no stdlib mitigation
+      for zip-slip, so the check must be written by hand. Before extracting, resolve each entry
+      name against the destination root and reject anything that escapes it (§5.6's
+      canonicalise-then-bounds-check), and cap entry count, total uncompressed size and
+      compression ratio. Extracting a caller-supplied archive without this writes wherever the
+      archive says.
+    pattern-either:
+      - pattern: zipfile.ZipFile(...).extractall(...)
+      - pattern: ZipFile(...).extractall(...)
+      - patterns:
+          - pattern: $Z.extractall(...)
+          - pattern-inside: |
+              $Z = zipfile.ZipFile(...)
+              ...
+      - patterns:
+          - pattern: $Z.extractall(...)
+          - pattern-inside: |
+              with zipfile.ZipFile(...) as $Z:
+                  ...
+    paths:
+      exclude:
+        - "test_*.py"
+        - "*_test.py"
+        - "tests/"
+        - "conftest.py"
+        - "benchmarks/"
+        - "examples/"
+        - "scripts/"
+  - id: eng-rulebook.security.python-path-join-caller-value
+    languages: [python]
+    severity: WARNING
+    message: >-
+      eng-rulebook/security.md §5.6: joining a value onto a base path. In Python an ABSOLUTE
+      second component silently discards the base — os.path.join('/srv/uploads', '/etc/passwd')
+      returns '/etc/passwd', and Path('/srv/uploads') / '/etc/passwd' does the same. No '..' is
+      involved, so a sanitiser that strips traversal sequences does not help. Resolve the joined
+      path, verify it lies inside the intended root, and REJECT — never repair — when it does not.
+    patterns:
+      - pattern-either:
+          - pattern: os.path.join($BASE, $USER, ...)
+          - pattern: pathlib.Path($BASE) / $USER
+          - pattern: Path($BASE) / $USER
+      # A string literal cannot be caller-influenced, so it cannot carry the leading "/" that
+      # discards the base. Excluding it is what keeps this rule's signal usable.
+      - pattern-not: os.path.join($BASE, "...")
+      - pattern-not: pathlib.Path($BASE) / "..."
+      - pattern-not: Path($BASE) / "..."
+    paths:
+      exclude:
+        - "test_*.py"
+        - "*_test.py"
+        - "tests/"
+        - "conftest.py"
+        - "benchmarks/"
+        - "examples/"
+        - "scripts/"

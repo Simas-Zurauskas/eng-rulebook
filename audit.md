@@ -96,8 +96,17 @@ This phase is the "don't miss files" mechanism. Do not skip or approximate it.
 
 Run per repo and record exit status + salient output verbatim (these results also seed auditor attention):
 
-- The repo's own scripts where they exist: typecheck (`tsc`), lint, format-check, and the test suite **only if hermetic** (in-memory DB, mocked network). Skip and record anything requiring credentials, live services, or device builds.
-- **Dependency audit:** `yarn audit` / `npm audit` (or `osv-scanner` if present) — record Critical/High advisories; also note unmaintained or many-majors-behind pins.
+- The repo's own scripts where they exist: typecheck, lint, format-check, and the test suite **only if hermetic** (in-memory DB, mocked network). Skip and record anything requiring credentials, live services, or device builds.
+- **Resolve the commands from the repo's language, not from memory.** Invoke the repo's own task names where they exist (`tooling-and-workspace.md` §3, `python-packaging.md` §4, `php-packaging.md` §4); fall back to the tool only when no task is defined. **A language whose gate you did not run is a coverage gap, not a clean result — record it as such.**
+
+  | Language | Typecheck / analyse | Lint · format | Dependency audit |
+  | --- | --- | --- | --- |
+  | TypeScript | `tsc --noEmit` | ESLint · Prettier | `npm audit` / `yarn audit`, or `osv-scanner` |
+  | Python | the repo's declared checker — `mypy` or `pyright` (`python-typing.md` §2.1) | `ruff check` · `ruff format --check` | `pip-audit` / `uv pip audit`, or `osv-scanner` |
+  | PHP | the repo's declared analyser at its declared level — PHPStan or Psalm (`php-typing.md` §2.2) | php-cs-fixer / PHP_CodeSniffer | `composer audit` |
+
+  **Record the configuration, not just the exit code.** For Python and PHP the gate's *level* is the whole control and its default is near-silent — mypy skips unannotated function bodies unless `check_untyped_defs` is on, and PHPStan's default level is 0. A green run at the tool default is evidence of almost nothing, so capture the strictness setting alongside the result; a pass whose level you did not record cannot be interpreted later.
+- **Dependency audit** (per the table above) — record Critical/High advisories; also note unmaintained or many-majors-behind pins.
 - **Secret sweep:** pattern scan for committed credentials (`AKIA`, `-----BEGIN.*PRIVATE KEY`, `password\s*[:=]`, bearer/API-key shapes, high-entropy literals) across tracked files; verify `.gitignore` posture of env/secret paths. Findings are Lens A; apply directive 6.
 - Cheap structure metrics: largest files, TODO/FIXME density, test-file-to-source ratio. These are context for auditors, not findings by themselves.
 

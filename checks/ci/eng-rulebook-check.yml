@@ -6,12 +6,19 @@
 # library exists to prevent.
 #
 # What it runs, and which standard requires it:
-#   typecheck   type-safety.md § Guard rails — standalone tsc, independent of the framework build
-#   lint        type-safety.md § Guard rails — typescript-eslint recommendedTypeChecked or above
-#   semgrep     the checks/semgrep rules; each message names the rule it enforces
+#   typecheck   the repo's declared checker, standalone and independent of any build —
+#               type-safety.md (TypeScript) / python-typing.md §2.1 / php-typing.md §2.2
+#   lint        the repo's lint gate — type-safety.md GR2 / python-typing.md GR2 / php-typing.md GR1
+#   semgrep     the checks/semgrep rules; each message names the rule it enforces. The directory
+#               holds rules for all three languages and each file declares its own `languages:`,
+#               so pointing at the directory is correct whatever the stack.
 #   deps        security.md §10 — severity-gated: critical/high block, lower severities get
 #               scheduled triage rather than silence
 #   secrets     security.md §6 — a deterministic scanner, not a model reading the diff
+#
+# THE JOB BELOW IS THE TYPESCRIPT LANE. The Python and PHP lanes are at the bottom of this file.
+# Copy the one that matches the repo — a workspace with repos in two languages runs two jobs, not
+# one job with conditionals: a skipped step and a passing step look identical in a run summary.
 #
 # Pin every action to a full commit SHA before using this in anger
 # (supply-chain-and-build-integrity.md). The `@vN` refs below are placeholders and are the exact
@@ -45,6 +52,15 @@ jobs:
       # type-safety.md: standalone, so a passing framework build cannot mask a type error.
       - run: npx tsc --noEmit
 
+      # type-safety.md §2.4: prove the type-aware rules are actually RUNNING. A peer-range
+      # mismatch between the compiler and typescript-eslint makes them stop applying without
+      # failing anything, so a green lint step is otherwise indistinguishable from no lint step.
+      - name: assert type-aware lint is live
+        run: |
+          echo "Point this at a fixture with a known no-unsafe-* violation and fail if the"
+          echo "linter does not report it. Left unwired deliberately (see the secret-scan note)."
+          exit 1
+
       - run: npx eslint .
 
       # The library's own pattern rules. Continues on findings so the job reports ALL of them in
@@ -52,8 +68,13 @@ jobs:
       - name: semgrep (standards rules)
         run: |
           python3 -m pip install --quiet semgrep
+          # Only ERROR-severity rules block. The WARNING/INFO rules are surface-it by design
+          # (checks/README.md § Validation) — gating on them erases the distinction the rule
+          # messages spend their prose making, and gets the whole step disabled.
           semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ \
-                  --error --quiet .
+                  --severity ERROR --error --quiet .
+          semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ \
+                  --severity WARNING --severity INFO --quiet . || true
 
       # security.md §10: severity-gated. `--audit-level=high` is the threshold the standard
       # states; findings below it must be triaged on a schedule, not discarded.
@@ -98,3 +119,87 @@ jobs:
 #      # The check blocks nothing by design — post its findings as a PR comment and let the
 #      # delivery process decide (references/README.md § The delivery seam).
 # ------------------------------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------------------------------
+# THE PYTHON LANE — replace the `standards` job above with this one in a Python repo.
+#
+#  python-standards:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@vN            # PIN TO A SHA
+#      - uses: astral-sh/setup-uv@vN          # PIN TO A SHA
+#
+#      # python-packaging.md §2.3: install from the lockfile WITHOUT resolving. `--locked` also
+#      # fails when pyproject.toml was edited and nobody re-locked; `--frozen` does not.
+#      - run: uv sync --locked
+#
+#      # python-packaging.md GR3: four declarations of one fact, coupled by nothing in the format.
+#      - name: version-triple equality
+#        run: |
+#          echo "Assert requires-python == ruff target-version == checker python_version,"
+#          echo "and that the interpreter this job ran satisfies the floor."
+#          exit 1
+#
+#      # python-typing.md §2.1/§2.2 — the declared checker, at the declared floor, as its own step.
+#      - run: uv run mypy --config-file pyproject.toml .
+#
+#      # python-typing.md GR2 + python-packaging.md GR6.
+#      - run: uv run ruff check .
+#      - run: uv run ruff format --check .
+#
+#      - name: semgrep (standards rules)
+#        run: |
+#          uv tool run semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ --severity ERROR --error --quiet .
+#          uv tool run semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ --severity WARNING --severity INFO --quiet . || true
+#
+#      # security.md §10, severity-gated.
+#      - run: uv tool run pip-audit
+#
+# ------------------------------------------------------------------------------------------------
+# THE PHP LANE — replace the `standards` job above with this one in a PHP repo.
+#
+#  php-standards:
+#    runs-on: ubuntu-latest
+#    steps:
+#      - uses: actions/checkout@vN            # PIN TO A SHA
+#      - uses: shivammathur/setup-php@vN      # PIN TO A SHA
+#        with:
+#          php-version: '8.4'                 # MUST equal composer.json's platform pin
+#
+#      # php-packaging.md §2.2: `install`, never `update`; validate catches an unlocked manifest.
+#      - run: composer validate --strict
+#      - run: composer install --no-interaction --no-progress
+#
+#      # php-typing.md GR1 — the one obligation that is worthless at 99% coverage, and which no
+#      # analyser checks. Every .php file, including tests and scripts.
+#      - name: declare(strict_types=1) present in every file
+#        run: |
+#          # --exclude-dir=vendor: composer install has already run, and third-party code is
+#          # not yours to declare. The alternation accepts `<?php declare(strict_types=1);`
+#          # written on the opening-tag line, which the anchored form silently missed.
+#          missing=$(grep -rLE '(^|<\?php[[:space:]]+)[[:space:]]*declare[[:space:]]*\([[:space:]]*strict_types[[:space:]]*=[[:space:]]*1[[:space:]]*\)' \
+#                    --include='*.php' --exclude-dir=vendor . || true)
+#          if [ -n "$missing" ]; then echo "$missing"; exit 1; fi
+#
+#      # php-typing.md §2.2: the level lives in the committed config, not on this command line,
+#      # so it cannot be silently dropped.
+#      - run: vendor/bin/phpstan analyse --no-progress
+#
+#      - run: vendor/bin/php-cs-fixer fix --dry-run --diff
+#
+#      - name: semgrep (standards rules)
+#        run: |
+#          python3 -m pip install --quiet semgrep
+#          semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ --severity ERROR --error --quiet .
+#          semgrep --config .claude/skills/eng-rulebook/checks/semgrep/ --severity WARNING --severity INFO --quiet . || true
+#
+#      # php-packaging.md GR9 — advisory data only: a clean run means "no known advisory".
+#      - run: composer audit
+#
+#      # php-packaging.md GR4 — a production-only resolution or autoload failure surfaces here
+#      # instead of at deploy.
+#      - name: --no-dev boot
+#        run: |
+#          composer install --no-dev --no-interaction --optimize-autoloader
+#          echo "Then boot the app and assert it starts."
+#          exit 1

@@ -1,0 +1,89 @@
+# eng-rulebook — ruff baseline. EXTEND, don't copy.
+#
+#   # pyproject.toml
+#   [tool.ruff]
+#   extend = "path/to/eng-rulebook-base.toml"
+#   target-version = "py314"        # MUST equal requires-python (python-packaging.md §5.2)
+#
+# Enforces: python-typing.md §4.1 (typed ignores), §8 (exception chaining), §9.1 (mutable
+# defaults); security.md §5.7 (deserialization, unsafe loaders), §5.8 (assert as a control);
+# resilience.md §2 (explicit deadlines, via S113).
+#
+# security.md §5.8 (assert as a control) is deliberately NOT enforced here — see the S101 note in
+# the exclusions block at the bottom. No pattern separates a security gate from an internal
+# invariant, so blocking on it would block on a judgement.
+#
+# SELECTED BY MEASUREMENT, NOT BY TASTE. Every rule below was run over 582 files from three
+# mature Python libraries (flask, httpx, pydantic); families that produced hundreds of findings
+# on idiomatic, correct code were excluded and are listed at the bottom with their counts.
+# See checks/README.md § Validation. Ruff is pre-1.0 — pin the exact version you extend this with.
+
+[lint]
+select = [
+  # --- suppression hygiene: python-typing.md §4.1 -------------------------------------------
+  "PGH003",   # blanket `# type: ignore`      202 true positives in product source (validation)
+  "PGH004",   # blanket `# noqa`
+  "PGH005",   # invalid mock access
+
+  # --- deserialization and dynamic execution: security.md §5.7 ------------------------------
+  "S102",     # exec
+  "S301",     # pickle            surface-it: legitimate uses exist; the rule is "show the source"
+  "S302",     # marshal
+  "S307",     # eval
+  "S312",     # telnet
+  "S506",     # unsafe YAML loader  — the surviving hazard; PyYAML 6 made `Loader` required, so
+              #                       the defect is now an explicit unsafe loader, not a default
+  "S508", "S509",   # insecure SNMP
+  "S602", "S604", "S605", "S612",   # shell=True and friends
+  "S608",     # hardcoded SQL expression
+
+  # --- weak primitives -----------------------------------------------------------------------
+  "S303", "S324",   # insecure hash
+  "S311",     # non-cryptographic random in a security context
+
+  # --- XML entity expansion: security.md §5.7 ------------------------------------------------
+  "S313", "S314", "S315", "S316", "S317", "S318", "S319",   # S320 was removed from ruff — do not re-add
+
+  # --- archives and deadlines ----------------------------------------------------------------
+  "S202",     # tarfile extractall — NOTE: fires on the SAFE `filter="data"` form too, so treat
+              # it as surface-it. Zip extraction has no ruff rule at all: that gap is covered by
+              # checks/semgrep/python-security.yaml.
+  "S113",     # `requests` call without timeout — resilience.md §2. `requests` defaults to NO
+              # timeout at all (verified: Session.request timeout default is None).
+
+  # --- async correctness ---------------------------------------------------------------------
+  "ASYNC210", "ASYNC212",                       # blocking HTTP call in an async function
+  "ASYNC220", "ASYNC221", "ASYNC222",           # subprocess in an async function
+  "ASYNC230", "ASYNC240", "ASYNC250", "ASYNC251",
+  "RUF006",   # dangling asyncio task — the event loop holds only a weak reference, so a task
+              # nobody stores may be garbage-collected before it runs
+
+  # --- correctness: python-typing.md §8, §9.1 ------------------------------------------------
+  "B006",     # mutable default argument — one object shared for the life of the process
+  "B904",     # raise without `from` inside except   77 true positives in product source
+  "B905",     # zip() without explicit strict=
+]
+
+[lint.per-file-ignores]
+# Tests legitimately assert, pickle fixtures, and shell out.
+"**/test_*.py"  = ["S101", "S301", "S602", "S603", "S604", "S605"]
+"**/*_test.py"  = ["S101", "S301", "S602", "S603", "S604", "S605"]
+"**/tests/**"   = ["S101", "S301", "S602", "S603", "S604", "S605"]
+"**/conftest.py" = ["S101"]
+
+# ------------------------------------------------------------------------------------------------
+# DELIBERATELY NOT SELECTED — measured, with the reason. Re-adding any of these is a project
+# decision recorded in the profile, not an oversight to be corrected.
+#
+#   TID252  relative-imports          286 hits — idiomatic in libraries. Taste, not defect.
+#   PTH*    os.path -> pathlib        ~60   — pure style.
+#   S101    assert (outside tests)    108   — cannot distinguish an internal invariant from a
+#                                             security control; the real rule (security.md §5.8)
+#                                             is judgement-only. Kept OFF here so the honest
+#                                             obligation is not buried under noise.
+#   S105/6  hardcoded password        55    — fires on parameter NAMES; near-total false positive.
+#   DTZ*    naive datetime            182   — real class, unusable noise in datetime-handling code.
+#   T20     print                     91    — needs per-project path scoping to mean anything;
+#                                             observability.md GR1 owns it with an allowlist.
+#   S603    subprocess-without-shell  12    — flags ALL subprocess use, not the dangerous form.
+# ------------------------------------------------------------------------------------------------

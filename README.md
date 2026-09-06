@@ -12,7 +12,7 @@ _before_ building** instead of findings a review catches afterward.
 
 ## TL;DR
 
-- **16 generic rulebooks** (one per topic) live in [`references/`](references/).
+- **21 generic rulebooks** (one per topic; five are language lanes for Python and PHP) live in [`references/`](references/).
 - Load one **before writing code** → the rules are defaults, not after-the-fact findings.
 - Check a **diff** at merge cadence, or run a full **audit** of the workspace.
 - The mechanizable rules ship as **runnable checks** in [`checks/`](checks/) — semgrep, ESLint,
@@ -38,7 +38,12 @@ Each master is 200–450 lines, sized to be read whole. Load the lane you're in,
 
 | Topic | Governs |
 | --- | --- |
-| [`type-safety`](references/type-safety.md) | Compiler strictness, `any`/cast policy, schema-derived types, boundary parsing |
+| [`type-safety`](references/type-safety.md) | **TypeScript:** compiler strictness, `any`/cast policy, schema-derived types, boundary parsing |
+| [`python-typing`](references/python-typing.md) | **Python:** checker floor, the unannotated-body hole, `Any`/typed-ignore policy, boundary parsing, exhaustiveness |
+| [`python-packaging`](references/python-packaging.md) | **Python:** interpreter floor, manager and lockfile, venv discipline, task vocabulary, ruff baseline, `src/` layout, wheel/ABI |
+| [`php-typing`](references/php-typing.md) | **PHP:** `strict_types` scoping, analyser level, `mixed` policy, backed enums, comparison and identity |
+| [`php-packaging`](references/php-packaging.md) | **PHP:** Composer platform vs the real host, lockfile and install modes, extensions, plugin allowlist, PSR-4, tasks, style |
+| [`php-runtime`](references/php-runtime.md) | **PHP:** `php.ini` as a deployable, disclosure and session-cookie defaults, OPcache and deploy invalidation, process model, execution limits |
 | [`testing`](references/testing.md) | Hermetic suites, unit-vs-integration split, the must-test list, mutation score, oracle provenance |
 | [`security`](references/security.md) | Auth, sessions & revocation, input validation & SSRF, CSRF, path traversal, secrets, rate limits, storage |
 | [`data-integrity`](references/data-integrity.md) | Atomic claims, fencing tokens, idempotency, expand/migrate/contract, terminal-state guards, cleanup |
@@ -111,7 +116,7 @@ guard rails for product code and exempts itself is not credible.
 | `meta/check-rulebook-shape.mjs` | Every cited `§N.M` anchor resolves; every rulebook has the required sections |
 | `meta/check-tables.sh` | The four tables that list the rulebooks agree with what is on disk |
 | `meta/check-version.sh` | `VERSION` is sane, every rulebook has a `Rev:`, changed rulebooks appear in the changelog |
-| `meta/guard-rails.mjs` | Enumerates the 113 declared rails; reconciles them against a workspace's ledger |
+| `meta/guard-rails.mjs` | Enumerates the declared rails (155 at v7); reconciles them against a workspace's ledger |
 
 ## How a new workspace adopts this
 
@@ -188,7 +193,7 @@ eng-rulebook/
   audit.md             # the /eng-rulebook audit procedure (phases 0-8, plus 2b enforcement)
   VERSION              # one integer for the library
   CHANGELOG.md         # change classes, defined once; one entry per release
-  references/          # the 16 rulebooks + index + machinery
+  references/          # the 21 rulebooks + index + machinery
     README.md          #   scope index + adoption model (routing lives in SKILL.md)
     _authoring.md      #   the contract for writing/editing a rulebook (14 rules)
     _gaps.md           #   inbound backlog: defects no rule covers, with an intake bar

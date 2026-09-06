@@ -2,7 +2,7 @@
 
 > **What this is:** reusable, generic engineering standards — one file per topic — loaded by
 > AI agents and humans *before building*, so the patterns that survived real audits become
-> defaults instead of findings. Written for multi-repo TypeScript workspaces documented with
+> defaults instead of findings. Written for multi-repo TypeScript, Python and PHP workspaces documented with
 > `wiki-system`; distilled from full audits of a real four-repo production system plus
 > current (2025–2026) external practice.
 >
@@ -62,7 +62,12 @@ Both use the same severity language (consequence-if-it-fires × plausibility) an
 
 | Standard | One-line scope |
 | --- | --- |
-| [`type-safety.md`](type-safety.md) | Compiler strictness baseline, `any`/cast policy, schema-derived types, parse-don't-assert at trust boundaries |
+| [`type-safety.md`](type-safety.md) | **TypeScript:** compiler strictness baseline, `any`/cast policy, schema-derived types, parse-don't-assert at trust boundaries |
+| [`python-typing.md`](python-typing.md) | **Python:** which checker runs and at what floor, the unannotated-body hole, `Any`/`cast()`/typed-ignore policy, boundary parsing, exhaustiveness, checker-vs-runtime divergence |
+| [`python-packaging.md`](python-packaging.md) | **Python:** interpreter floor, manager and lockfile, venv discipline, the task vocabulary `pyproject.toml` does not provide, ruff baseline, `src/` layout, wheel/ABI contract |
+| [`php-typing.md`](php-typing.md) | **PHP:** `strict_types` as a call-site-scoped all-or-nothing control, analyser level, `mixed` and suppression policy, backed enums, comparison and identity |
+| [`php-packaging.md`](php-packaging.md) | **PHP:** the platform Composer declares but cannot enforce, lockfile and install modes, extensions, plugin allowlist, PSR-4 autoloading, tasks, style |
+| [`php-runtime.md`](php-runtime.md) | **PHP:** interpreter configuration as a deployable — the settings that decide whether written code executes, disclosure, session-cookie defaults, OPcache and deploy invalidation, process model, execution limits |
 | [`testing.md`](testing.md) | The clean-checkout guarantee (hermetic suites), integration-first split, the must-test list, contract-pinning tests |
 | [`security.md`](security.md) | Session tiers with explicit revocation blast radius, input validation & SSRF, secrets, rate limits, storage posture |
 | [`data-integrity.md`](data-integrity.md) | Stored-state correctness: atomic claims, fencing tokens, idempotency keys, terminal-state guards, migrations, cleanup |
