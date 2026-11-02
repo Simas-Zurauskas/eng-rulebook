@@ -32,6 +32,20 @@ reordering would not close it.
 
 ---
 
+## v9 — 2026-11-02
+
+**ADDS** · Touches: `references/testing.md` (Rev 4 → 5).
+
+**Test placement gets a rule.** `testing.md` §10: one placement convention per repo, the language's. TypeScript and
+JavaScript co-locate `name.test.ts` beside its file (`__tests__/` allowed only where a repo already uses it
+throughout, never mixed); Python and PHP mirror the source tree under `tests/`; cross-module suites (database,
+end-to-end, contract pins) live in one named top-level folder with its own script; test files never ship. A repo
+that mixes conventions is a finding; moving a consistent suite is not. New failure shape (the orphaned test) and a
+checklist box. Raised by an owner question («should tests not be in `__tests__` folders?»): the library said where
+test *data* comes from (§9) but never where tests *live*.
+
+---
+
 ## v8 — 2026-09-06
 
 **Test data gets a provenance rule.** `testing.md` has always said where an *expected value*

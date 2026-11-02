@@ -1,6 +1,6 @@
 # Testing Standard
 
-> **Type:** Generic, reusable standard · **Rev:** 4 (2026-09-06)
+> **Type:** Generic, reusable standard · **Rev:** 5 (2026-11-02)
 > **Audience:** AI agents and humans writing or reviewing code.
 > **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
 >   Loaded on demand via the skill's routing table (SKILL.md).
@@ -379,6 +379,44 @@ produces valid instances cannot produce an invalid one.
 
 ---
 
+## 10. Where tests live — one placement convention per repo
+
+A repo MUST hold every test to one placement convention, the language's, decidable from the
+tree. Mixed conventions (some tests beside their files, some in `__tests__/`, some in a
+`tests/` mirror) leave no answer to "where is this module's test?": a moved or deleted module
+leaves its test behind, green and testing nothing, and a new module ships with none because the
+gap is not visible.
+
+### 10.1 Unit tests by language
+
+- **TypeScript / JavaScript:** co-located, `name.test.ts` beside `name.ts`. The test moves,
+  renames and deletes with its file in the same diff, and a file with no sibling test is visible
+  in the tree. A per-directory `__tests__/` folder is an older Jest convention: allowed where a
+  repo already uses it throughout, never mixed with co-located files, and no reason to move a
+  co-located suite. Test support (factories, fakes, setup) lives in one shared folder
+  (`src/test/`, `test/support/`), not beside an arbitrary module.
+- **Python:** a top-level `tests/` mirroring the package path (`tests/billing/test_invoice.py`
+  for `src/app/billing/invoice.py`), so a `src/` layout tests the installed package rather than
+  the working tree (`python-packaging.md` owns the layout).
+- **PHP:** `tests/` mirroring `src/`, under its own `autoload-dev` namespace (`php-packaging.md`).
+
+### 10.2 Cross-module suites live in one named top-level folder
+
+Suites that span modules or processes — database functions, end-to-end flows, contract pins
+(§5.6), load tests — live in one named folder at the repo or package root (`e2e/`,
+`tests/integration/`, `supabase/tests/`), never beside whichever file the author had open. Each
+such folder has its own script (§3), so CI runs it by name.
+
+### 10.3 Tests never ship
+
+Test files and test support are excluded from the production bundle, the published package
+and coverage of production code by the build's own globs, and stay inside the type gate
+(`testing.GR10`). A repo whose convention is consistent is compliant: moving a consistent suite
+to another convention is churn with no defect behind it, and only a repo that mixes conventions
+is a finding.
+
+---
+
 ## Failure shapes
 
 Named patterns from real audits — recognise them in review:
@@ -408,6 +446,9 @@ Named patterns from real audits — recognise them in review:
   compiles, runs and passes, because nothing they import moved. (Prevented by §9.2.)
 - **The sleep race.** Concurrency "tested" with wall-clock sleeps; flaky in CI, then
   `.skip`ped, then the invariant regresses. (Prevented by §7.1.)
+- **The orphaned test.** Tests in three placement styles; a module is moved or deleted, its
+  test stays where it was and passes against nothing, and nobody notices the new module has
+  none. (Prevented by §10.)
 
 ---
 
@@ -439,6 +480,8 @@ Before merging code — or a test:
       regenerated from current behaviour? (§4.5)
 - [ ] No retry setting added; any test newly quarantined carries an owner and a return
       date in the profile? (§7.5)
+- [ ] New tests sit where the repo's one placement convention puts them; a moved, renamed or
+      deleted module's test moved, renamed or went with it in the same diff? (§10)
 
 ---
 
