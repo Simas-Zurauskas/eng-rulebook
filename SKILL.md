@@ -50,11 +50,19 @@ project facts and ask only for consequential information the code cannot establi
    implementation reflects current conventions before copying it. Use the
    [single guide index](references/README.md) to choose relevant guides and read their
    applicable checks before writing. Explicit guide requests use the index's topic resolution.
+   For consequential changes, identify what must remain true, what must be rejected, and which
+   interactions could break those guarantees. Use existing requirements/contracts; resolve
+   consequential ambiguity before implementing. Brief working notes suffice; no new spec is required.
 2. Load as much as the real risk requires, without a fixed guide cap. Cross-references are
    invitations to inspect a relevant boundary, not instructions to load the whole library.
    Pass applicable guide paths to implementation agents when delegation is warranted.
 3. Implement within the authorized scope. Review the result against the selected checks,
    exercise the meaningful behavior, and inspect the diff for unnecessary mechanisms/tests.
+   When the change could materially affect authorization, money, data integrity, compatibility
+   or recovery, use a fresh independent verifier where available and permitted. Have it derive
+   expected behavior from requirements, inspect affected callers/boundaries, and attempt to
+   refute findings with concrete evidence. Scale verification to the actual reachable risk;
+   a different model is not required. Disclose when verification is self-performed.
 4. Report what changed, actual verification, and material limitations. No per-rule receipt,
    profile, ledger, or automatic audit. Revisit relevant checks when scope changes.
 

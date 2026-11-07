@@ -70,7 +70,11 @@ Honor existing project gates and report what actually ran.
 
 Coverage can reveal blind spots; it cannot prove assertion quality. Use targeted fault injection,
 mutation, property tests or fuzzing when a significant uncertainty warrants their cost; bound
-runs and make failures reproducible. An equivalent mutant is not automatically dead code.
+runs and make failures reproducible. Consider property-based or stateful tests when correctness
+depends on input combinations or operation sequences, such as retries, cancellation or
+serialization round trips. Validate each property against the intended contract, not an inferred
+implementation detail; reuse the existing harness where practical and retain a minimal reproducer
+for confirmed failures. An equivalent mutant is not automatically dead code.
 Before deleting/consolidating tests, identify lost unique scenarios/assertions and verify
 replacement protection. Fewer assertions can be valid; raw counts are not a quality measure.
 Do not weaken gates, remove failure cases or regenerate expectations merely to make CI green.
@@ -88,3 +92,6 @@ flakiness and redundant journeys as maintenance costs rather than generating mor
 - [Google: unit testing, including meaningful test sharing](https://abseil.io/resources/swe-book/html/ch12.html)
 - [Coverage as a diagnostic](https://martinfowler.com/bliki/TestCoverage.html)
 - [Assertion effectiveness and targeted mutation](https://martinfowler.com/articles/sensors-for-coding-agents.html)
+- [Contract-grounded test generation](https://arxiv.org/abs/2608.17177)
+- [Independent verification of agent-produced software](https://arxiv.org/abs/2610.28667)
+- [Property-based bug finding and validation](https://www.anthropic.com/research/property-based-testing)

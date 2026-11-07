@@ -1,5 +1,18 @@
 # Changelog — eng-rulebook
 
+## v12 — 2026-11-07
+
+**ADDS / CLARIFIES — proportional bug prevention during development.**
+
+Consequential development identifies contracts and meaningful interactions before editing,
+then uses fresh independent verification where available and permitted, with evidence,
+refutation and honest self-verification fallback. No separate specification, report or
+different-model requirement is introduced; review follows the actual reachable risk.
+
+TEST7 clarifies when property-based/stateful tests help and requires properties grounded in
+the intended contract, bounded runs and reproducible failures. Existing test guidance, check
+IDs, commands, audit modes and shared Codex/Claude installation remain unchanged.
+
 ## v11 — 2026-11-07
 
 **ADDS / CLARIFIES — agent-led development without a second workflow.**
