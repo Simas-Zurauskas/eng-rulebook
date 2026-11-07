@@ -1,13 +1,11 @@
 // Compiler-strictness baseline for references/type-safety.md.
 //
-// EXTEND it, never copy it — a copied baseline drifts per repo, which is the failure
-// tooling-and-workspace.md exists to prevent:
+// Optional preset; extending it can reduce drift when projects deliberately share settings:
 //   { "extends": "./.claude/skills/eng-rulebook/checks/tsconfig/eng-rulebook-base.json" }
 //
 // It deliberately sets NO target/module/lib/paths/outDir: those are the repo's choice and differ
 // legitimately between an API, a worker and a bundled client. This file owns strictness only.
-// Each flag names the failure it prevents; removing one is a decision worth recording in the
-// project profile.
+// Preserve established project gates; changing one requires a deliberate project decision.
 //
 // NOTE: this file is JSONC. tsc accepts comments here but rejects unknown keys inside
 // `compilerOptions`, so rationale lives in comments and never as `$comment` keys.
@@ -38,15 +36,15 @@
     "forceConsistentCasingInFileNames": true,
 
     // Deliberate: checks YOUR types, not your dependencies' shipped .d.ts, which you cannot fix.
-    // Turning it off buys noise, not safety.
+    // Projects validating dependency declarations may deliberately override this choice.
     "skipLibCheck": true,
 
     // Keeps source compatible with single-file transpilers (bundlers, ts-node, test runners) so
     // the type-check and the build cannot disagree.
     "isolatedModules": true,
 
-    // type-safety.md requires a STANDALONE typecheck step. A repo that emits from tsc overrides
-    // this in its build config; the check itself stays independent of the bundler.
+    // A transpiler alone does not typecheck. A repo emitting from tsc overrides noEmit
+    // in its build config; this optional preset supports a separate checking invocation.
     "noEmit": true
   }
 }

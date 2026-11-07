@@ -1,4 +1,4 @@
-// ESLint flat-config fragment for references/type-safety.md § Guard rails.
+// ESLint flat-config fragment for references/type-safety.md TS1/TS2.
 //
 // This is a FRAGMENT, not a config: spread it into the repo's own flat config so the repo keeps
 // ownership of files/ignores/parserOptions. Every rule below traces to a line of the standard;
@@ -8,19 +8,19 @@
 //   import tseslint from 'typescript-eslint'
 //   import { engRulebookTypeSafety } from './.claude/skills/eng-rulebook/checks/eslint/eng-rulebook-base.mjs'
 //   export default [
-//     ...tseslint.configs.recommendedTypeChecked,   // required by the standard, not by this file
+//     ...tseslint.configs.recommendedTypeChecked,   // one compatible project choice
 //     { languageOptions: { parserOptions: { projectService: true } } },
 //     engRulebookTypeSafety,
 //   ]
 //
-// The standard requires `recommendedTypeChecked` or above. This fragment does NOT pull it in,
+// This opt-in preset expects type-aware analysis. It does NOT select the project parser/config,
 // because doing so would silently pin a typescript-eslint version inside a library that is copied
 // between repos — version choice stays with the repo (tooling-and-workspace.md).
 
 export const engRulebookTypeSafety = {
   name: 'eng-rulebook/type-safety',
   rules: {
-    // type-safety.md § Guard rails: `no-explicit-any` at error.
+    // type-safety.md TS1/TS2: `no-explicit-any` at error.
     '@typescript-eslint/no-explicit-any': 'error',
 
     // The no-unsafe-* family. These are what make `any` expensive rather than merely present:
@@ -38,7 +38,7 @@ export const engRulebookTypeSafety = {
       objectLiteralTypeAssertions: 'never',
     }],
 
-    // comment-standard.md §3.1: a bare suppression directive is a defect — the reason string is
+    // comment-standard.md COM1: a bare suppression directive is a defect — the reason string is
     // the only record of why the rule is off.
     '@typescript-eslint/ban-ts-comment': ['error', {
       'ts-expect-error': 'allow-with-description',
@@ -49,13 +49,13 @@ export const engRulebookTypeSafety = {
     }],
 
     // WARN, deliberately: a non-null assertion is sometimes the honest expression of an invariant
-    // the compiler cannot see. The standard asks for "warn or better" — erroring here produces
+    // the compiler cannot see. This preset warns; erroring indiscriminately can produce
     // suppression comments rather than better types, which is a worse outcome.
     '@typescript-eslint/no-non-null-assertion': 'warn',
   },
 }
 
-// Test files legitimately need the casts production code must not use. Spread this AFTER the
+// Some negative tests deliberately construct invalid values; scope overrides to actual need. Spread this AFTER the
 // fragment above. The path list is a starting point — a repo owns its own test glob.
 export const engRulebookTypeSafetyTestOverrides = {
   name: 'eng-rulebook/type-safety-tests',

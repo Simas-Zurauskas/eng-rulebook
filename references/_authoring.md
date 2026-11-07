@@ -1,163 +1,27 @@
-# Authoring contract — eng-rulebook library
+# Authoring engineering guidance
 
-> How every standard in this library is written. Read this before writing or editing one.
-> The exemplar is `comment-standard.md` — match its voice.
+Maintain one library for development, full audits and basics audits. Each guide has an
+Applicability section and individually identifiable checks (`### SEC1 — …`, for example).
+The index in README.md is the only topic catalog and routing authority.
 
-## What a standard is
+- A required behavior names the concrete failure it prevents and the condition under which
+  it applies. Reserve absolute instructions for actual invariants. Design preferences state
+  their tradeoffs; do not universalize one past incident or one framework's architecture.
+- Preserve user scope and existing project authority. No mandatory profiles, ledgers, receipts,
+  compliance maps, arbitrary coverage targets or missing-tool findings.
+- Prefer one owner for a rule and a link to it from related guides. Keep runtime-specific
+  traps when they matter; remove copied manuals, version catalogs and repeated examples.
+- Read relevant original material before consolidating it. Keep evidence for material rule
+  relaxations in the changelog. Published reports keep their historical meaning.
+- Check IDs are stable within a guide: append new IDs, never reuse a retired ID for a different
+  obligation. Cite guide, ID and library version in reports. Breaking migrations explicitly
+  distinguish old identifiers; never automatically mark old findings fixed after a rule change.
+- Add authoritative links where a rule relies on external behavior. Verify changing APIs and
+  tool options against current primary docs when actually implementing them. Do not invent
+  incidents, guarantees, tool settings, or universal cost savings.
+- Validate with `node meta/check.mjs`. Exercise changed executable helpers on meaningful
+  cases. Use independent forward trials for substantial workflow changes; formatting checks
+  alone cannot demonstrate useful decisions. Favor small realistic trials over test-count goals.
 
-A standard is a **reusable, generic rule set** an AI agent or human loads *before building*,
-so the patterns that survived audits become defaults instead of findings. It is the
-build-time twin of this skill's audit mode (`../audit.md`, run by `/eng-rulebook audit`): the
-audit verifies these properties against the code after the fact; the standard states them up
-front. Use the audit's vocabulary — severity, lens, the `Standard:` mapping — so a finding
-maps cleanly back to the rule it violated.
-
-## The reuse model
-
-- **The library ships inside the `eng-rulebook` skill** — one master per topic in the skill's
-  `references/`, routed by `SKILL.md`. A workspace adopts the library by copying the whole
-  skill folder into its `.claude/skills/`; the skill loads the relevant master on demand.
-- **Never scatter copies of individual standards** into repos, wikis, or prompts — that
-  recreates the drift problem the library exists to prevent. The skill folder is the unit
-  of reuse; when a master improves, update it in every workspace's copy of the skill.
-- **Per-project variance lives in a profile**, not in the master: each standard that needs
-  project facts ends with an **Appendix A — Project profile (TEMPLATE)**, explicitly blank,
-  which the project copies to `<home>/profiles/<topic>-profile.md` (next to the audit reports,
-  in the project's wiki repo — `SKILL.md` § Where eng-rulebook writes) and fills in.
-
-## Required shape
-
-```
-# <Topic> Standard
-> **Type:** Generic, reusable standard · **Rev:** N (<date-of-the-content-this-rev-captures>)
-> **Audience:** AI agents and humans writing or reviewing code.
-> **Status:** Part of the eng-rulebook library, bundled in the `eng-rulebook` skill (references/).
->   Loaded on demand via the skill's routing table (SKILL.md).
-> <2–3 lines: what this governs and the one-sentence core idea>
-
-## 0. Scope            — when it applies; assumed stack; what it does NOT cover (link sibling)
-## 1. Core principle   — the insight the rules derive from (rules must follow, not float)
-## 2..N Rules          — numbered, normative (MUST/NEVER/SHOULD + rationale)
-## Failure shapes      — named, recognisable patterns from real audits, genericised
-## Checklist           — the pre-commit / pre-review boxes
-## Guard rails         — CI checks that make the standard enforceable, not aspirational
-## Appendix A          — Project profile (TEMPLATE), only if the standard needs project facts
-```
-
-## Rules for writing rules
-
-1. **Every MUST names the failure it prevents.** "How do you know?" must be answerable with
-   an audit finding, an incident shape, or a named external standard. No taste-only rules.
-2. **Generic means no project identifiers.** Never name a specific project, product, person,
-   or vendor-model. Genericise evidence: *"in one audited four-repo TypeScript workspace…"*.
-   Technology names are allowed **only as labelled examples** ("e.g. Zod", "e.g. MSW") —
-   state the rule stack-agnostically first, then give the example.
-3. **Assumed context** (state it in §0): a multi-repo workspace — backend API, web client(s),
-   mobile app, worker(s) — with docs generated by wiki-system and types code-generated from a
-   runtime API spec. Services are **TypeScript, Python or PHP**. Standards may lean on that
-   shape. Most lanes are language-neutral and say so; where a lane is language-specific it is a
-   *separate master* named for its language (rule 7a), never a branch inside a shared one.
-4. **Positive, present tense.** No archaeology ("no longer", "used to"). State what is.
-5. **Selective beats encyclopedic.** 200–450 lines, aim ~350. A standard an agent can hold in context
-   beats a textbook it can't. Cut the third example, keep the failure shape.
-6. **External anchors by name + version + status + date-verified**, never bare URLs — URLs rot,
-   names are searchable. Put them in a table under §0 (see `security.md` §0 for the format).
-   State the *status* — a draft cited as final is a factual error, and a bare document name that
-   silently retrieves a superseded revision is worse than no citation, because the old revision's
-   text can appear to confirm the wrong rule. Re-verify anything older than 12 months.
-7. **Own your lane.** Overlap with a sibling standard gets a one-line cross-reference by
-   filename, never a restated rule. Two standards disagreeing is a library bug.
-
-   **7a. Lane ownership is keyed by subject *and* language.** `type-safety.md` (TypeScript),
-   `python-typing.md` and `php-typing.md` all govern "type strictness", and that is not a
-   violation of rule 7: the index key is the pair, and the pair is single-valued. The test for
-   whether a subject earns a language-specific master is **not** "the tools differ" — it is
-   **"the obligations differ in kind"**. Compare: TypeScript's `strict` is a compiler default
-   you must opt *out* of; Python's checker is optional and its default skips unannotated
-   function bodies entirely; PHP's `declare(strict_types=1)` is scoped to the *calling* file, so
-   it is worthless below 100% coverage. Those are three different rules, not one rule with three
-   examples, and collapsing them would produce a master that is vacuous in all three languages.
-
-   Where obligations are the *same* and only the spelling differs, the rule stays in the
-   language-neutral master and the languages appear as **labelled examples** (rule 2). Adding a
-   language-specific master is therefore a high bar, and a new one must state in its §0 what it
-   owns that the neutral sibling cannot. Symmetry between languages is explicitly **not** a
-   goal: PHP has three masters and Python two because PHP has a subject — interpreter
-   configuration that decides whether written code executes — that the others do not.
-8. **Severity language matches the audit prompt:** consequence-if-it-fires × plausibility.
-9. **Don't invent evidence.** No fabricated counts, incidents, or benchmarks. If you lack
-   evidence for a rule, either find it or cut the rule.
-10. **Every cited anchor resolves.** A `§N.M` cited anywhere in the library MUST exist as a
-    `### N.M` heading in its target file. A rules section with no `§N.M` cited against it is
-    itself the citable unit and is cited as `§N`. *Advisory only:* a section running ≥20 body
-    lines with ≥3 obligations is a **candidate** for sub-headings — the checker reports it and
-    nothing blocks, because no threshold partitions this corpus the way an editor would.
-11. **Sub-rule numbers are append-only.** A new obligation takes the next free number and is
-    **never inserted mid-sequence**; deleting one leaves a gap, and the gap is honest.
-    Renumbering passes every structural check while silently re-pointing every finding already
-    filed against the old number — and audit reports live in the *adopting workspace*, where
-    they can never be retro-updated. Renumber only after confirming no published report cites
-    the anchors you are moving.
-12. **Every Checklist box is decidable from a diff alone.** The boxes are what build-time mode
-    runs as its post-write receipt (`SKILL.md` § After writing), so a box requiring knowledge the
-    diff does not contain cannot be answered and gets skipped — which is how a checklist becomes
-    decoration. Phrase each as a question about the change, not about the system.
-13. **Every guard rail carries a stable id** — `**[<lane>.GR<n>]**` as the first thing in the
-    bullet, where `<lane>` is the filename stem. Ids are what a workspace's ledger tracks and
-    what an audit's enforcement reconciliation cites; a rail without one cannot be recorded as
-    wired, so "adopted incrementally" stays indistinguishable from "adopted nothing".
-    **Ids are append-only, exactly like sub-rule numbers (rule 11):** a new rail takes the next
-    free number, deleting one leaves an honest gap, and renumbering silently re-points every
-    ledger row and finding already filed against the old id. Verify with
-    `node meta/guard-rails.mjs`.
-14. **Run the checks before you commit.** `meta/check-rulebook-shape.mjs` (anchors + required
-    shape) and `meta/check-tables.sh` (the four tables) must both exit 0. They are the only
-    mechanical gates the library has; a library that legislates guard rails for product code
-    and exempts itself is not credible.
-
-## Adding a rule that came from a gap
-
-A `library-gap` is a defect no rule covers. The intake bar, the backlog and the review cadence
-live in [`_gaps.md`](_gaps.md) — read the bar before authoring, because most candidate gaps die
-on it (the rule usually exists in a sibling lane the reporter did not read). A gap that passes
-the bar becomes a rule under the rules above, and the CHANGELOG entry that ships it closes the
-backlog row.
-
-## Library index (lanes)
-
-> **Authoritative on lane ownership** — which file owns a subject when two could claim it (rule 7). Subject-keyed
-> and single-valued by construction: a subject with two owners is a library bug. It is **not** the router — that
-> is task-keyed, multi-valued, and lives in [`../SKILL.md`](../SKILL.md#routing-table).
->
-> **Adding a standard means four tables, one commit:** this index, `../SKILL.md` § Routing table,
-> `README.md` § The standards, and `../README.md` § Topics. Run `meta/check-tables.sh` before committing — and
-> when they disagree, the filesystem arbitrates: **add the missing row, never delete a route to make them agree.**
-
-> **Language-specific lanes are keyed by (subject, language)** — see rule 7a. Three masters govern
-> "type strictness" and three govern "toolchain surface"; each row below states its language, and the
-> pair is single-valued. A rule that holds in every language belongs in the neutral master with the
-> languages as labelled examples, not duplicated across the language rows.
-
-| File | Owns |
-| --- | --- |
-| `type-safety.md` | **TypeScript:** compiler strictness, `any`/cast policy, schema-derived types, boundary parsing |
-| `python-typing.md` | **Python:** checker selection and strictness floor, the unchecked-unannotated-body hole, `Any`/`cast()`/`# type: ignore` policy, boundary parsing, `assert_never` exhaustiveness, checker-vs-runtime divergence |
-| `python-packaging.md` | **Python:** interpreter floor, project manager and lockfile, virtual-environment discipline, the task vocabulary the format does not provide, ruff baseline, `src/` layout, wheel/ABI contract |
-| `php-typing.md` | **PHP:** `declare(strict_types=1)` as a call-site-scoped, all-or-nothing control; analyser level; `mixed` and suppression policy; boundary parsing; backed enums; comparison and identity |
-| `php-packaging.md` | **PHP:** Composer platform declaration vs the host that runs the code, lockfile and install modes, extension declaration, plugin allowlist, PSR-4 autoloading, task vocabulary, style baseline |
-| `php-runtime.md` | **PHP:** interpreter configuration as a deployable artifact — the `php.ini` settings that decide whether written code executes, disclosure settings, session-cookie defaults, OPcache and deploy invalidation, the request-per-process model and what inverts it, PHP-level execution limits |
-| `testing.md` | Hermeticity, unit vs integration, what must be tested, contract-pinning tests, where test data and expected values come from |
-| `security.md` | AuthN/Z, sessions & revocation, input validation, secrets, transport, rate limits |
-| `data-integrity.md` | Stored-state correctness: atomic claims, fencing, idempotency, terminal guards, migrations, cleanup |
-| `resilience.md` | Behaviour when dependencies fail: timeouts, retries, degradation ladders, watchdogs, backpressure, delivery redundancy |
-| `config-and-environment.md` | Env vars, boot guards, client exposure, environment gating, build/runtime coupling |
-| `api-contracts-and-codegen.md` | Spec source of truth, response envelope & error codes, codegen workflow, generated-file discipline |
-| `observability.md` | Logging, metrics & alarms, the silent-degradation ban, correlation |
-| `tooling-and-workspace.md` | **Language-neutral, plus the TypeScript specifics:** that the same tooling surface exists in every repo — the uniformity mechanism, repo inventory, generated dirs, CI parity — and the Node/TypeScript instantiation of it. The Python and PHP instantiations are `python-packaging.md` and `php-packaging.md`; this file owns the cross-repo obligation they each satisfy |
-| `mobile-app.md` | Mobile client platform: client session lifecycle, push-token lifecycle, backgrounding/offline, binary-vs-OTA versioning, store & native build config, wired-or-hidden controls |
-| `comment-standard.md` | Code comments: what the wiki owns vs what point-of-edit comments own, reference rules, comment truth |
-| `web-client.md` | The browser platform: in-memory token handling, refresh single-flight, route guards vs server authz, output-encoding sinks, **CSRF** (applicability, token mechanics, `SameSite`; the server-side *requirement* to demand a non-ambient proof is `security.md` §2.7), third-party script authority, accessibility |
-| `ai-features.md` | Products that ship an LLM/agent surface: prompt injection as data/instruction confusion, tool authority and blast radius, output validation, non-determinism testing, model cost |
-| `data-protection.md` | Personal data as a code concern: inventory, retention by class, deletion/export implementation, third-party egress, residency, consent as stored state |
-| `supply-chain-and-build-integrity.md` | Dependency admission, CI step/image pinning, workflow token scope, build-time identity, SBOM, signed provenance and its verification, supply-chain waivers |
-| `performance-and-data-access.md` | Cost that scales with data volume: index justification and query-shape matching, N+1, result and payload bounds, caching, pool sizing, latency budgets |
+Existing optional tool fragments are integration aids, not mandatory project configurations.
+Inspect consumers before changing their exported interfaces or removing them.

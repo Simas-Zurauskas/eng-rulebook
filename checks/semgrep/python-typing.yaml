@@ -1,6 +1,7 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/python-typing.md — the gaps ruff does not cover.
 #
-# ruff PGH003/PGH004 already reject bare `# type: ignore` and `# noqa` (python-typing.md §4.1) and
+# ruff PGH003/PGH004 already reject bare `# type: ignore` and `# noqa` (python-typing.md checks) and
 # are the primary mechanism. These add the escape hatch ruff has no rule for.
 
 rules:
@@ -8,11 +9,7 @@ rules:
     languages: [python]
     severity: ERROR
     message: >-
-      eng-rulebook/python-typing.md §3, §4.3: cast(Any, ...) is the emptiest claim available.
-      cast() has no runtime effect, so this asserts nothing while discarding every downstream
-      inference (§3's ban on Any). If the type is genuinely unknown, `object` accepts the value
-      and permits nothing until narrowed; if it is known, name it. Casting TO Any is never the
-      answer.
+      python-typing.md PYTYPE1: Casting to Any discards downstream checking. Inspect the boundary and prefer a known type or narrowing; this match alone does not prove a runtime defect.
     pattern-either:
       - pattern: cast(Any, ...)
       - pattern: typing.cast(Any, ...)
@@ -29,11 +26,7 @@ rules:
     languages: [python]
     severity: INFO
     message: >-
-      eng-rulebook/python-typing.md §4.3: every cast() is an unproven claim and carries a one-line
-      reason (comment-standard §3.1). Prefer proof first — isinstance narrowing, a TypeGuard/TypeIs
-      function, a Protocol, or a runtime parse (§5). Surface-it, not a ban: this rule cannot read
-      the adjacent comment, so its job is to make a human look at each site. The repeated cast is
-      a missing helper.
+      python-typing.md PYTYPE2: cast() supplies no runtime proof. Verify the invariant or parsed boundary and explain non-obvious assumptions. Repetition alone does not require a helper.
     patterns:
       - pattern-either:
           - pattern: cast($T, ...)

@@ -1,3 +1,53 @@
+# Changelog — eng-rulebook
+
+## v11 — 2026-11-07
+
+**ADDS / CLARIFIES — agent-led development without a second workflow.**
+
+Simplicity now distinguishes duplicated policy, coincidental similarity and independent test
+oracles, while preserving validation at each trust boundary. Architecture/comments clarify
+current-pattern selection, cohesive placement, verified rationale and bounded documentation.
+
+Type-safety adds shared TYP1–TYP3 for authoritative types, valid-state models and deliberate
+module contracts; existing TS1–TS4 retain their meanings and TypeScript applicability. Python
+and PHP bundles include the shared guide without imposing TypeScript tools. New aliases: dry,
+types. TOOL5 covers selective context, one instruction home and evidence versus enforcement.
+Existing testing guidance owns independent oracles; no new quotas, layouts or automation gates.
+
+Commands, guide filenames, optional tool exports and shared Codex/Claude discovery are retained.
+Named v10 check IDs are preserved; AI product checks do not trigger solely because an agent codes.
+
+## v10 — 2026-11-07
+
+**ADDS / RELAXES — consolidation of eng-rulebook v9 and eng-rulebook-lean v3.**
+
+One guide library, automatic development selection, explicit guide loading, change review,
+full audit, priority-check basics audit, and report recheck. Audit commands take no topics.
+Both audit modes use identical check criteria and evidentiary standards. New named check IDs
+replace the former numbered anchors; old reports retain their version-specific meaning.
+
+All 21 original technical guides are condensed with their substantive boundary/runtime
+protections retained; simplicity and architecture incorporate lean quality/architecture rules.
+Testing now considers incremental protection: existing tests can suffice, coverage/mutation
+are diagnostic, and no universal score floor, factory, mocking strategy or placement migration
+is imposed. Blanket layering, extraction and tooling mandates become contextual judgments.
+Profiles, compliance mappings, enforcement ledgers, per-rule receipts and check logs are retired.
+
+Audit accounts for untracked source and dirty snapshots; full accounts for all first-party
+source/tests/config, basics selects priority checks with declared omissions. Both verify
+consequential claims independently where available and disclose fallback. Recheck distinguishes
+actual fixes from policy changes. One concise report replaces mandatory report trees.
+
+The single guide index and link/check-ID validator replace duplicated routing tables. Optional
+existing tool exports remain; the non-executable placeholder CI template and governance helpers
+are retired. Read MIGRATION.md before interpreting historical reports or removing old installs.
+
+---
+
+## Historical changelog through v9
+
+The following records describe their original versions, not current instructions or requirements.
+
 # Changelog — eng-rulebook library
 
 `VERSION` holds one integer for the whole library. Each rulebook carries its own `**Rev:** N`

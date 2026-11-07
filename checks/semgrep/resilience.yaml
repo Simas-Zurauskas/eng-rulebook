@@ -1,3 +1,4 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/resilience.md
 #
 # Scope note, stated honestly: these catch the SHAPE of an untimed outbound call. They cannot
@@ -10,13 +11,7 @@ rules:
     languages: [typescript, javascript]
     severity: WARNING
     message: >-
-      eng-rulebook/resilience.md §2: every call that leaves the process carries an explicit
-      per-operation timeout. A `fetch` with no `signal` inherits the platform default, which on
-      some runtimes is *no timeout at all* — one unresponsive dependency then pins a worker, a
-      lease, or a request handler indefinitely, and the failure presents as a hang rather than an
-      error. Pass `AbortSignal.timeout(ms)` (or an equivalent controller), sized to the call's
-      real budget. If the deadline is enforced by a wrapper or a configured client, point at it in
-      a comment so the next reader does not have to re-derive that.
+      resilience.md RES2: External work needs a bounded lifetime. Inspect upstream cancellation, inherited deadlines and response consumption; a local fetch without signal is a lead, not proof of an unbounded operation.
     paths:
       exclude:
         - "*.test.ts"
@@ -47,6 +42,6 @@ rules:
 # positives. Written tightly enough to suppress those, it could not fire on a genuine unbounded
 # retry either. Deciding it needs to know whether an attempt counter exists AND is checked.
 #
-# resilience.md §3's bounded-retry rule is therefore JUDGEMENT-ONLY: it is verified by review and
+# resilience.md RES3 bounded-retry guidance is therefore JUDGEMENT-ONLY: it is verified by review and
 # by the audit, not by a pattern. Saying so is the point — a check that cannot fire, left in the
 # ruleset, reads as coverage the library does not have.

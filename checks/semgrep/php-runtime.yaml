@@ -1,14 +1,12 @@
-# Semgrep rules for references/php-runtime.md §5.2 — the PHP form of resilience.md §2.
+# Optional legacy detector; preserve project gates and triage matches using current guides.
+# Semgrep rules for references/php-runtime.md PHPRUN4 and resilience.md RES2.
 
 rules:
   - id: eng-rulebook.php-runtime.curl-without-timeout
     languages: [php]
     severity: WARNING
     message: >-
-      eng-rulebook/php-runtime.md §5.2, resilience.md §2: a cURL handle with no explicit deadline.
-      max_execution_time is not a substitute — it differs per SAPI and the CLI default is 0
-      (unlimited), so a queue worker inherits no bound at all. Set BOTH CURLOPT_CONNECTTIMEOUT and
-      CURLOPT_TIMEOUT on every handle; a connect timeout alone still allows an unbounded read.
+      php-runtime.md PHPRUN4 and resilience.md RES2: Verify cURL connect and total deadlines, including shared handle configuration. An inherited configured bound can refute this local match.
     patterns:
       # Bare and namespace-escaped: namespaced PHP writes `\curl_init()`, and omitting that form
       # makes this rule silently blind in most modern libraries.

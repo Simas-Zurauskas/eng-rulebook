@@ -1,136 +1,52 @@
-# Engineering Rulebook Library
+# Guide index
 
-> **What this is:** reusable, generic engineering standards — one file per topic — loaded by
-> AI agents and humans *before building*, so the patterns that survived real audits become
-> defaults instead of findings. Written for multi-repo TypeScript, Python and PHP workspaces documented with
-> `wiki-system`; distilled from full audits of a real four-repo production system plus
-> current (2025–2026) external practice.
->
-> **What this is not:** project documentation. Nothing here describes any specific project.
+This is the single catalog for explicit guide selection and agent routing. Every guide's
+checks apply identically in development, full audit and basics audit. There are no basic-only
+rules, fixed basic topics, or topic-count limits. Applicability comes from observed behavior.
 
----
+For development, read guides matching changed responsibilities and risks. For audits, investigate
+the whole system's surfaces first, then select individual checks: all applicable in full,
+highest-priority applicable in basics. Familiar technology names alone do not establish scope.
 
-## The model
+## Guides
 
-Four artifacts, four jobs — the same layering the comment standard is built on:
-
-| Artifact | Job | Lives |
+| Guide | Topics / aliases | Load when investigating |
 | --- | --- | --- |
-| **Standards** (this library) | How we build — generic, cross-project | inside the `eng-rulebook` skill (`references/`), routed by its `SKILL.md` |
-| **Audit** | How we verify — after the fact, whole workspace | this skill's [`audit.md`](../audit.md), invoked by `/eng-rulebook audit` — writes reports to `<home>/audits/<YYYY-MM-DD>/` |
-| **Check runs** | What we verified at merge time — one record per diff | `/eng-rulebook check` — a ledger row per run in `<home>/check-runs/`, plus a detail file when the run found something |
-| **Project profiles** | The workspace's current facts (not run records) | `<home>/profiles/<topic>-profile.md` — next to the audit reports, **tracked in the project's wiki repo** so the facts travel to teammates (a CI job in a code repo must check that repo out) |
+| [simplicity](simplicity.md) | simplicity, quality, code-quality, reuse, maintainability, dry | New mechanisms, custom infrastructure, duplication, indirection and cost of the next change. |
+| [architecture](architecture.md) | architecture, arch, structure | Responsibilities, module coupling, state lifetime and cross-component evolution. |
+| [security](security.md) | security, sec, auth | Identity, resource authority, untrusted input, secrets, uploads and interpreter boundaries. |
+| [data-integrity](data-integrity.md) | data-integrity, integrity, concurrency | Durable state, claims, fencing, deduplication, deletion and migrations. |
+| [resilience](resilience.md) | resilience, correctness, correct, errors | Domain/error semantics, deadlines, retries, cancellation and recovery. |
+| [api-contracts-and-codegen](api-contracts-and-codegen.md) | api-contracts-and-codegen, api, contracts, codegen | Wire behavior, generated contracts, middleware and deployed compatibility. |
+| [performance-and-data-access](performance-and-data-access.md) | performance-and-data-access, performance, perf, data, data-and-performance | Query/index evidence, bounded work, payloads, caches and capacity. |
+| [testing](testing.md) | testing, test, tests | Changed behavior, effective assertions, test selection, fixtures and suite cost. |
+| [supply-chain-and-build-integrity](supply-chain-and-build-integrity.md) | supply-chain-and-build-integrity, dependencies, supply-chain, build-integrity | Dependency admission, build authority, releases and trusted artifacts. |
+| [config-and-environment](config-and-environment.md) | config-and-environment, config, environment | Boot settings, unsafe defaults, exposure and build/runtime coupling. |
+| [tooling-and-workspace](tooling-and-workspace.md) | tooling-and-workspace, tooling, tool, workspace, delivery | Reproducible checks, artifacts, generated files and workspace ownership. |
+| [observability](observability.md) | observability, logging, monitoring | Consequential silent failures, actionable context and safe telemetry. |
+| [data-protection](data-protection.md) | data-protection, privacy | Personal-data flow, retention, deletion/export, consent and vendor egress. |
+| [web-client](web-client.md) | web-client, web, browser | Browser identity/refresh, rendering, interaction and client delivery. |
+| [mobile-app](mobile-app.md) | mobile-app, mobile | Cold start, suspension, push/account ownership, native/OTA and offline behavior. |
+| [ai-features](ai-features.md) | ai-features, ai, llm | Model/tool authority, retrieval, output validation, cost, streaming and evaluations. |
+| [type-safety](type-safety.md) | type-safety, typescript, type, types | Shared model/type ownership and contracts in any language; TS checks only for TypeScript/JavaScript. |
+| [python-typing](python-typing.md) | python-typing | Python unchecked bodies, Any, assertions, annotations and state semantics. |
+| [python-packaging](python-packaging.md) | python-packaging | Python environment, installed artifacts, native dependencies and execution model. |
+| [php-typing](php-typing.md) | php-typing | PHP strictness, JSON/collection shapes, comparisons and errors. |
+| [php-packaging](php-packaging.md) | php-packaging | Composer/runtime agreement, plugins, no-dev install and autoloading. |
+| [php-runtime](php-runtime.md) | php-runtime | Effective SAPI config, OPcache activation, persistent workers and upload/routing limits. |
+| [comment-standard](comment-standard.md) | comment-standard, comments, comment | Machine-consumed directives, non-obvious constraints and comment truth. |
 
-Standards and the audit are twins in **one skill**: `/eng-rulebook <topic>` loads a rulebook
-before building; `/eng-rulebook audit` checks the code against the same rulebooks and writes a
-report. An audit finding maps back to the standard rule it violated (its `Standard:` field);
-a defect with no covering rule is a `library-gap` — a change request against these references.
-Both use the same severity language (consequence-if-it-fires × plausibility) and lens taxonomy.
+## Topic resolution — guide requests only
 
-## How a project adopts this
+Match an exact filename stem or listed alias, case-insensitively; accept a `.md` suffix.
+Multiple tokens select the union, deduplicated. `python` selects type-safety, python-typing and
+python-packaging; `php` selects type-safety, php-typing, php-packaging and php-runtime. In type-safety,
+only TYP checks apply across languages; TS checks remain TypeScript/JavaScript-specific. If there is no exact/alias match, a unique
+case-insensitive substring of a stem may resolve it. Ambiguous or unknown tokens list candidates
+and require clarification; never load every possible guide. Mode words are not guide topics.
+Audit commands do not use this topic parser.
 
-1. **Copy the skill, not the standards — into `.claude/skills/eng-rulebook/`.** The directory name
-   is the command; the frontmatter `name:` is only a display label. A workspace adopts the library
-   by taking the whole skill folder into its `.claude/skills/` under that exact name. The skill
-   carries **no profiles** — those are workspace facts and live in the workspace tree (next
-   step), so a skill update never touches them and another project's facts never arrive with
-   the library. The skill's routing table
-   loads the right master on demand. Never scatter copies of individual standards into repos,
-   wikis, or prompts; that recreates the drift problem the library exists to prevent.
-2. **Fill in profiles.** Each standard that needs project facts ends with an
-   **Appendix A — Project profile (TEMPLATE)**. Copy the template (not the standard) to
-   `<home>/profiles/<topic>-profile.md`, fill it in, keep it
-   current — and **commit it**, so teammates see the same facts.
-   Rules are universal; the profile is this workspace's instantiation of them — living
-   reference data, not a run log. *(Migrating an older install: move any
-   `.claude/skills/eng-rulebook/profiles/*.md`, or any `eng-rulebook-audit/profiles/*.md`
-   left at the workspace root, here.)*
-3. **Wire the guard rails.** Every standard ends with CI checks that make it enforceable
-   rather than aspirational. Adopt them incrementally; each names what it catches.
-4. **Audit against it.** Run `/eng-rulebook audit` periodically (reports land in
-   `<home>/audits/<YYYY-MM-DD>/`, beside the per-diff trail in `<home>/check-runs/`); a finding that recurs across runs is either a missing guard
-   rail or a `library-gap` — fix the standard, not just the instance.
-
-## The standards
-
-> **This is a scope index, not a router.** It answers *"what does each standard cover?"* — one row per file,
-> single-valued. It does **not** answer *"what do I read for the task in front of me?"*: that question is
-> task-keyed and legitimately multi-valued (several tasks need two or three masters), and it is owned by the
-> routing table in [`SKILL.md`](../SKILL.md#routing-table). Routing from this index instead silently drops the
-> multi-lane rows. Lane ownership — which file owns a subject when two could claim it — is owned by
-> [`_authoring.md`](_authoring.md) § Library index. This file **is** authoritative on the adoption model below.
-
-| Standard | One-line scope |
-| --- | --- |
-| [`type-safety.md`](type-safety.md) | **TypeScript:** compiler strictness baseline, `any`/cast policy, schema-derived types, parse-don't-assert at trust boundaries |
-| [`python-typing.md`](python-typing.md) | **Python:** which checker runs and at what floor, the unannotated-body hole, `Any`/`cast()`/typed-ignore policy, boundary parsing, exhaustiveness, checker-vs-runtime divergence |
-| [`python-packaging.md`](python-packaging.md) | **Python:** interpreter floor, manager and lockfile, venv discipline, the task vocabulary `pyproject.toml` does not provide, ruff baseline, `src/` layout, wheel/ABI contract |
-| [`php-typing.md`](php-typing.md) | **PHP:** `strict_types` as a call-site-scoped all-or-nothing control, analyser level, `mixed` and suppression policy, backed enums, comparison and identity |
-| [`php-packaging.md`](php-packaging.md) | **PHP:** the platform Composer declares but cannot enforce, lockfile and install modes, extensions, plugin allowlist, PSR-4 autoloading, tasks, style |
-| [`php-runtime.md`](php-runtime.md) | **PHP:** interpreter configuration as a deployable — the settings that decide whether written code executes, disclosure, session-cookie defaults, OPcache and deploy invalidation, process model, execution limits |
-| [`testing.md`](testing.md) | The clean-checkout guarantee (hermetic suites), integration-first split, the must-test list, contract-pinning tests, test data imported from the code rather than restated beside it |
-| [`security.md`](security.md) | Session tiers with explicit revocation blast radius, input validation & SSRF, secrets, rate limits, storage posture |
-| [`data-integrity.md`](data-integrity.md) | Stored-state correctness: atomic claims, fencing tokens, idempotency keys, terminal-state guards, migrations, cleanup |
-| [`resilience.md`](resilience.md) | Behaviour when dependencies fail: timeouts, bounded retry, transient-vs-terminal classification, degradation ladders, watchdogs |
-| [`config-and-environment.md`](config-and-environment.md) | Fail-closed boot, env taxonomy, client-bundle exposure, environment gating, build/runtime coupling |
-| [`api-contracts-and-codegen.md`](api-contracts-and-codegen.md) | The spec as single source of truth, envelope & closed error codes, codegen in every consumer, generated-file discipline |
-| [`observability.md`](observability.md) | The silent-degradation ban, alarms on money/availability paths, structured domain logging, correlation |
-| [`tooling-and-workspace.md`](tooling-and-workspace.md) | Multi-repo uniformity: package manager, script vocabulary, config baselines, lockfiles, generated dirs, CI parity |
-| [`mobile-app.md`](mobile-app.md) | The mobile client: session/push lifecycle, backgrounding, binary-vs-OTA versioning, store & native build config, wired-or-hidden controls |
-| [`comment-standard.md`](comment-standard.md) | Code comments: generated docs own the narrative, comments own point-of-edit constraints; reference rules and comment truth |
-| [`web-client.md`](web-client.md) | The browser surface: token handling in memory, the refresh race, route guards are UX not access control, XSS sinks and CSP, CSRF, third-party script authority, accessibility |
-| [`ai-features.md`](ai-features.md) | Product LLM/agent surfaces: untrusted-content-as-data, tool authority, schema-validated model output, evals as a gate, cost and quota |
-| [`data-protection.md`](data-protection.md) | Personal data as a code concern: the inventory, retention by class, deletion and export implementation, third-party egress, residency, consent as stored state |
-| [`supply-chain-and-build-integrity.md`](supply-chain-and-build-integrity.md) | What may enter the dependency tree, CI step and image pinning, workflow token scope, build-time identity, SBOM and signed provenance with fail-closed verification |
-| [`performance-and-data-access.md`](performance-and-data-access.md) | Cost that scales with data volume: index justification and query-shape matching, the N+1 class, result and payload bounds, caching, pool sizing, latency budgets and deadline cancellation |
-
-Authoring a new standard or editing one: [`_authoring.md`](_authoring.md) is the contract —
-required shape, genericity rules, lane ownership, anchor discipline, evidence bar.
-
-**The `_`-prefixed files beside the rulebooks are machinery, not standards** — the gates exclude
-them from the standards set by that prefix:
-
-| File | Holds |
-| --- | --- |
-| [`_authoring.md`](_authoring.md) | The contract every rulebook is written to, and the lane index (authoritative on which file owns a subject) |
-| [`_gaps.md`](_gaps.md) | The inbound backlog: defects **no** rule covers, with a four-point intake bar. Rows are added **against the master only** — an installed copy is read-only |
-| [`_coverage-asvs.md`](_coverage-asvs.md) | Which ASVS 5.0 chapters this library states a rule for — the delta that makes the §1 assurance-target declaration falsifiable |
-
-## The delivery seam — this library owns WHAT, a delivery process owns WHEN
-
-These rulebooks are criteria. They do not decide when a check runs, who signs it off, or whether
-a change ships — that belongs to whatever delivery process a workspace uses (in this workspace,
-the `stagegate` skill, which declares the seam and its invariants from its side).
-
-Two consequences bind this library:
-
-- **Route delivery concerns out, don't absorb them.** Multi-reviewer panels, fresh-context
-  review, held-out authoring, tier routing, PR-size caps, deploy ordering and review cadence are
-  *process*. A rule here that legislates them grows a shadow copy of the delivery process, and
-  the two will disagree. Test: **if the obligation is about a person's workflow rather than a
-  property of the code, it is not ours.**
-- **This library never gates anything.** A rulebook states a property and, where relevant, a
-  blocking threshold (e.g. `security.md` §10's critical/high). Applying that threshold to a
-  particular change is the delivery process's call, and running `/eng-rulebook audit` as a
-  per-change gate is a category error — it is workspace-scoped and would fail a one-line fix on
-  pre-existing findings in unrelated repos.
-
-## Cross-cutting themes the topics share
-
-These recur across standards because they recurred across audits; if you remember five
-things, remember these:
-
-1. **Silent failure is the enemy everywhere.** Hand-mirrored contracts drift silently,
-   degradation ladders fall through silently, spec blocks outside the generator glob vanish
-   silently, a missing metric hides a fleet regression. Most guard rails in this library
-   exist to convert a silent failure into a loud one.
-2. **The database constraint is the arbiter, not application logic.** Atomic claims, unique
-   idempotency indexes, caps enforced inside the write filter — under concurrency, only the
-   store's guarantee holds.
-3. **Decide from durable truth, not process signals.** Exit codes, in-memory state, and
-   "the request returned 200" are signals; the artifact existing in storage is truth.
-4. **Money paths get the strictest everything** — dedup on retry, phase markers, attempts
-   caps, alarms. A transient blip that costs real money is a bug class of its own.
-5. **A mechanism half-adopted is worse than none** — a single-source config endpoint one
-   client ignores, a revocation lever that misses one credential family — because it reads
-   as solved. Adopt fully or track the gap explicitly.
+Cross-cutting lenses are combinations of these existing checks: release readiness uses the
+applicable build/config/artifact/lifecycle checks; accessibility uses web/mobile interaction;
+test effectiveness uses testing; compatibility uses contracts/integrity/platform checks.
+There are no separate lens rulebooks or extra scan commands.

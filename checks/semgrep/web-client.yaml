@@ -1,22 +1,18 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/web-client.md
 #
 # Each rule id is `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
 # failure is traceable to a line of the standard rather than to an unexplained lint id.
 #
 # Tested against a labelled fixture and real repositories before shipping — see
-# checks/README.md § Validation.
+# the archived pre-v10 checks/README.md validation notes.
 
 rules:
   - id: eng-rulebook.web-client.raw-html-sink
     languages: [typescript, javascript]
     severity: WARNING
     message: >-
-      eng-rulebook/web-client.md §5.1: this is one of the enumerable holes in the framework's
-      auto-escaping — a raw-HTML sink. Like the fetch-without-timeout rule, this detects the
-      SHAPE and cannot prove the value is unsanitised: a hit may be fine because the
-      value is sanitiser output (§5.2 — the sanitiser must not permit script) or a build-time
-      constant. Treat a hit as "show me the sanitiser", not as a defect. Part of the sink half
-      of [web-client.GR1].
+      web-client.md WEB2: Raw HTML requires a trustworthy source or appropriate sanitization. Trace source, sanitizer configuration and downstream transformations before reporting XSS.
     paths:
       exclude:
         - "*.test.ts"

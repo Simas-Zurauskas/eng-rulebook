@@ -1,21 +1,16 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/security.md (PHP).
 #
 # Rule ids are `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
 # failure is traceable to a line of the standard rather than to an unexplained id.
-# Validated against 3,441 .php files from three mature projects — see checks/README.md § Validation.
+# Validated against 3,441 .php files from three mature projects — see the archived pre-v10 checks/README.md validation notes.
 
 rules:
   - id: eng-rulebook.security.php-unserialize-no-allowlist
     languages: [php]
     severity: ERROR
     message: >-
-      eng-rulebook/security.md §5.7: unserialize() with no allowed_classes option. PHP's
-      object-graph format instantiates whatever the payload names, so a caller-influenced string
-      reaches __wakeup()/__destruct() on classes you did not choose — the POP-chain surface. Pass
-      the allowlist explicitly: unserialize($s, ['allowed_classes' => false]) yields
-      __PHP_Incomplete_Class instead of instantiating, and a named array allows only what you
-      list. Where the payload is your own (cache, queue), it still needs an integrity tag (§6)
-      proving this process wrote it. Prefer a self-describing format with no object semantics.
+      security.md SEC5: Object deserialization can invoke attacker-controlled behavior. Trace payload trust and integrity; prefer safe data formats or constrain allowed classes with the actual threat in mind.
     pattern-either:
       - pattern: unserialize($X)
       - pattern: \unserialize($X)
@@ -32,10 +27,7 @@ rules:
     languages: [php]
     severity: ERROR
     message: >-
-      eng-rulebook/php-typing.md §8.2 (analyser blindness) and security.md §5.1 (boundary admission): extract() creates local variables from array keys. On
-      caller-influenced data it lets the caller name the variables in your scope, overwriting
-      anything already there — including a flag a check above just set. There is no safe
-      configuration of this on untrusted input; read the keys you want by name.
+      php-typing.md PHPTYPE2: extract() can overwrite local authority/state from array keys. Trace the source, allowed keys and flags before judging the effect.
     pattern-either:
       - pattern: extract(...)
       - pattern: \extract(...)
@@ -52,10 +44,7 @@ rules:
     languages: [php]
     severity: ERROR
     message: >-
-      eng-rulebook/php-typing.md §8.2: dynamic code execution. eval() and create_function() compile
-      a string as PHP; if any part of that string is caller-influenced this is remote code
-      execution, and the analyser can see nothing inside it either (php-typing.md §8.2). Replace
-      with an explicit dispatch table keyed on a validated closed set (php-typing.md §5).
+      security.md SEC5: Dynamic code execution is unsafe for attacker-controlled content. Inspect reachability and use explicit validated dispatch where it solves the actual requirement.
     pattern-either:
       - pattern: eval(...)
       - pattern: create_function(...)
@@ -73,10 +62,7 @@ rules:
     languages: [php]
     severity: WARNING
     message: >-
-      eng-rulebook/security.md §5.9: shell execution. Surface-it, not a ban — legitimate uses
-      exist. Show that no caller-influenced value reaches the command string: pass an argument
-      array where the API supports it, and escapeshellarg() every interpolated value otherwise.
-      escapeshellcmd() is NOT a substitute; it leaves argument boundaries intact.
+      security.md SEC5: Shell execution needs safe argument boundaries. Trace input and shell parsing; legitimate fixed or correctly escaped operations are not automatically defects.
     pattern-either:
       - pattern: exec(...)
       - pattern: \exec(...)

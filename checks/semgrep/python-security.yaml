@@ -1,10 +1,11 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/security.md (Python) — the gaps ruff's `S` family does not cover.
 #
 # Scope discipline: ruff is the primary Python mechanism (checks/ruff/eng-rulebook-base.toml) and
 # already covers pickle (S301), tarfile extractall (S202), `requests` without timeout (S113),
 # shell=True (S602), unsafe YAML loaders (S506) and the XML family (S313-S320). Duplicating those
 # here would imply two mechanisms where there is one. These rules exist because ruff 0.16.6 has no
-# equivalent — verified by running ruff over the same fixture; see checks/README.md § Validation.
+# equivalent — verified by running ruff over the same fixture; see the archived pre-v10 checks/README.md validation notes.
 #
 # Rule ids are `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces.
 
@@ -13,13 +14,7 @@ rules:
     languages: [python]
     severity: WARNING
     message: >-
-      eng-rulebook/security.md §5.7: zip extraction with no bounds check. Unlike `tarfile`,
-      `zipfile` has NO `filter=` parameter at any Python version — there is no stdlib mitigation
-      for zip-slip, so the check must be written by hand. Before extracting, resolve each entry
-      name against the destination root and reject anything that escapes it (§5.6's
-      canonicalise-then-bounds-check), and cap entry count, total uncompressed size and
-      compression ratio. Extracting a caller-supplied archive without this writes wherever the
-      archive says.
+      security.md SEC5/SEC6: Archive extraction needs bounded expansion and safe destinations. Inspect upstream size/count limits and path handling before reporting a defect.
     pattern-either:
       - pattern: zipfile.ZipFile(...).extractall(...)
       - pattern: ZipFile(...).extractall(...)
@@ -46,11 +41,7 @@ rules:
     languages: [python]
     severity: WARNING
     message: >-
-      eng-rulebook/security.md §5.6: joining a value onto a base path. In Python an ABSOLUTE
-      second component silently discards the base — os.path.join('/srv/uploads', '/etc/passwd')
-      returns '/etc/passwd', and Path('/srv/uploads') / '/etc/passwd' does the same. No '..' is
-      involved, so a sanitiser that strips traversal sequences does not help. Resolve the joined
-      path, verify it lies inside the intended root, and REJECT — never repair — when it does not.
+      security.md SEC6: Joining an untrusted path does not establish containment. Inspect normalization, absolute paths, symlinks and the trusted root; already validated inputs can be safe.
     patterns:
       - pattern-either:
           - pattern: os.path.join($BASE, $USER, ...)

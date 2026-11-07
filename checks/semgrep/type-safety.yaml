@@ -1,20 +1,17 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/type-safety.md
 #
 # Each rule id is `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
 # failure is traceable to a line of the standard rather than to an unexplained lint id.
 #
-# Tested against real repositories before shipping — see checks/README.md § Validation.
+# Tested against real repositories before shipping — see the archived pre-v10 checks/README.md validation notes.
 
 rules:
   - id: eng-rulebook.type-safety.as-unknown-as
     languages: [typescript, javascript]
     severity: ERROR
     message: >-
-      eng-rulebook/type-safety.md §Guard-rails: `as unknown as` defeats the type system in two steps
-      to assert something the compiler rejected in one. It is the cast with the least evidence
-      behind it. Parse the value at the boundary (a schema) or narrow it with a type guard. If it
-      is genuinely unavoidable, move it behind a documented adapter with a comment giving the
-      reason (comment-standard §3.1 directive reasons).
+      type-safety.md TS2: Double assertions can bypass a real mismatch. Inspect the actual boundary and invariant before accepting or reporting the cast.
     paths:
       exclude:
         - "*.test.ts"
@@ -40,10 +37,7 @@ rules:
     languages: [typescript]
     severity: WARNING
     message: >-
-      eng-rulebook/type-safety.md §Guard-rails: an object-literal assertion like `{} as T` claims a
-      value satisfies T while providing none of it — the emptiest claim available, and it survives
-      every later field addition to T silently. Build the value, or use a factory that the compiler
-      checks.
+      type-safety.md TS2: An empty-object assertion does not initialize required fields. Trace construction before use and verify the intended state contract.
     paths:
       exclude:
         - "*.test.ts"

@@ -1,22 +1,18 @@
+# Optional legacy detector; preserve project gates and triage matches using current guides.
 # Semgrep rules for references/config-and-environment.md
 #
 # Each rule id is `eng-rulebook.<lane>.<slug>` and each message names the rule it enforces, so a CI
 # failure is traceable to a line of the standard rather than to an unexplained lint id.
 #
 # Tested against a labelled fixture and real repositories before shipping — see
-# checks/README.md § Validation.
+# the archived pre-v10 checks/README.md validation notes.
 
 rules:
   - id: eng-rulebook.config-and-environment.env-number-fail-open
     languages: [typescript, javascript]
     severity: WARNING
     message: >-
-      eng-rulebook/config-and-environment.md §2.3: a numeric cast of an env var at the point of
-      use is not validation — a missing or non-numeric value becomes NaN, every comparison
-      against NaN is false, and whatever the number gates fails open with no error (the audited
-      example: a daily send-cap breaker that could never trip). Parse and validate this in the
-      boot-time env module (one accessor, §2.1), not inline. This rule detects the SHAPE: a hit
-      inside the env module itself, next to an isNaN/schema guard, is the fix — not a defect.
+      config-and-environment.md CFG1: An absent or invalid numeric setting can become NaN and disable a consequential limit. Verify validation before affected work; an adjacent range/schema guard may already make this safe.
     paths:
       exclude:
         - "*.test.ts"
