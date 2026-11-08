@@ -37,12 +37,19 @@ file. Mock/fake external services and effects where needed. Internal seams may b
 when justified, but never mock away the very authorization, transaction or interaction being
 claimed as tested. Small explicit fakes are valid; no mandatory partial-mock technique.
 
+Look for existing fetch, session, native or environment controls before replacing an internal
+module. Real stores/adapters can expose wiring failures hidden by a prop recorder. Follow the
+repo's mock policy; do not invent a universal prohibition. Shared framework fakes must preserve
+the lifecycle consumers rely on, such as focus transitions, dependency changes and cleanup.
+
 ### TEST4 — Keep the oracle independent and diagnostic
 
 Expected behavior comes from requirements or independent derivation, not a call to the function
-under test or its shared algorithm. Import production types and unrelated setup primitives;
-retain explicit external contract literals where their exact value is the assertion. Review
-snapshot/golden changes deliberately; never bulk-regenerate them to hide a failure. A test
+under test or its shared algorithm. Reuse production types and suitable setup primitives where
+they do not supply the expected answer; retain explicit external contract literals where their
+exact value is the assertion. Keep historical/malformed inputs explicit rather than generating
+all compatibility records with today's serializer. Review snapshot/golden changes deliberately;
+never bulk-regenerate them to hide a failure. A test
 needs assertions sensitive to plausible wrong outcomes, not only status/truthiness. Multiple
 assertions can explain one behavior. Names and failures should identify what regressed.
 
@@ -50,8 +57,12 @@ assertions can explain one behavior. Names and failures should identify what reg
 
 Use small fixtures and the existing harness. Introduce a shared factory when repeated setup or
 shape maintenance justifies it, not for every domain type. Parameterize useful cases without
-hiding their intent. Some duplicated setup is clearer than an abstract test framework. Avoid
-testing private call structure, trivial delegation, library internals or type-system guarantees
+hiding their intent. Share repeated mechanics without coupling scenario inputs to expected
+answers. Preserve coherent related state, units, identity and reset semantics; a shallow override
+does not necessarily rebuild a valid scenario. Keep deliberately invalid states possible.
+Construct effectful fixtures before acting, not inside assertions. Some duplicated setup is
+clearer than a universal factory or deep-merge framework. Avoid testing private call structure,
+trivial delegation, library internals or type-system guarantees
 without a concrete runtime risk. Do not merge unrelated assertions into a giant end-to-end test
 just to reduce the number of tests.
 
@@ -62,7 +73,10 @@ clean up handles. Races require controlled interleavings or competing operations
 assertions, not sleeps and hope. A simultaneous start alone may not exercise a crucial interleaving.
 Keep fast local checks available, and document prerequisites for meaningful service/device
 integration checks separately. Do not claim every suite needs zero services or must run in
-seconds. Avoid live production dependencies in routine tests. Retry must not silently turn a
+seconds. Track exact run-owned records/resources and clean up on failure as well as success;
+protect preexisting records when reusing identities. When shared state cannot be separated
+safely, use a disposable environment; refuse occupied resources rather than taking them over.
+Avoid live production dependencies in routine tests. Retry must not silently turn a
 failure into a clean result; fix or explicitly quarantine flakes while retaining visibility.
 Honor existing project gates and report what actually ran.
 
@@ -74,9 +88,13 @@ runs and make failures reproducible. Consider property-based or stateful tests w
 depends on input combinations or operation sequences, such as retries, cancellation or
 serialization round trips. Validate each property against the intended contract, not an inferred
 implementation detail; reuse the existing harness where practical and retain a minimal reproducer
-for confirmed failures. An equivalent mutant is not automatically dead code.
+for confirmed failures. Confirm an injected fault actually executed: setup/import failures do
+not demonstrate assertion sensitivity. An equivalent mutant is not automatically dead code.
 Before deleting/consolidating tests, identify lost unique scenarios/assertions and verify
 replacement protection. Fewer assertions can be valid; raw counts are not a quality measure.
+Identical outputs or invariant dimensions may share assertions; keep distinct thresholds,
+modes and reachable failures. Measure representative costs before claiming an improvement,
+distinguishing focused/full runs, timing methods and host load.
 Do not weaken gates, remove failure cases or regenerate expectations merely to make CI green.
 
 ### TEST8 — Keep tests part of the maintained system

@@ -1,5 +1,20 @@
 # Changelog — eng-rulebook
 
+## v13 — 2026-11-08
+
+**CLARIFIES — fixture reuse, faithful boundaries and test maintenance.**
+
+TEST3–TEST7 distinguish shared input mechanics from independent expected answers, preserve
+historical/malformed records and coherent scenario state, and prefer existing effect controls
+when an internal mock hides the interaction under review. Framework fakes retain relevant
+lifecycle semantics; integration cleanup protects preexisting records and resources.
+
+Fault probes confirm the mutant actually ran; consolidation retains distinct thresholds,
+modes and failures, with comparable cost evidence before speedup claims. These clarifications
+follow an actual app testing review; they do not impose that app's no-internal-mocks policy,
+Supabase stack, helper layout, fixture counts or native flows on other projects. Existing
+check IDs, gates, commands and shared Codex/Claude discovery remain unchanged.
+
 ## v12 — 2026-11-07
 
 **ADDS / CLARIFIES — proportional bug prevention during development.**
