@@ -9,9 +9,30 @@ agent after investigating the codebase; the user does not supply a topic list.
 Read relevant `AGENTS.md`, `CLAUDE.md`, manifests, README, and existing project constraints.
 Read the installed skill's `VERSION` file for the library version; project/parent Git revisions
 are not substitutes. Content hashes additionally identify edited guidance when useful.
-Explicit repository scope wins; otherwise inspect the current repo or the workspace's
-maintained code units. Include communicating first-party components within scope. Ask only
-when materially different plausible boundaries remain; do not ask users to choose lenses.
+
+### Resolve repository scope
+
+1. **Explicit user scope wins**, including repository selections or exclusions already established
+   in this conversation. A later short command does not reset that scope.
+2. Otherwise follow project instructions to the existing wiki's **`AGENTS/` codebase map** and use
+   its registered source repositories as the default. For wiki-system maps, read `AGENTS/.state.json`
+   (`repos` and optional `excluded_repos`) and the repository manifest in `AGENTS/index.md` to resolve
+   names/paths. Resolve repository paths against the declared project/workspace root, not the wiki
+   or installed skill directory; `.` can identify a single source repo. Other map formats can declare
+   the same scope in their index. Honor recorded exclusions. A stale source snapshot does not by
+   itself invalidate the map's repository registration: verify current source and checkout identity.
+3. Exclude the actual documentation repository by resolved path unless the user includes it.
+   Do not add the wiki or every sibling merely because it is a Git repository. A registered repo
+   whose checkout is missing stays in the expected scope as unavailable; report it, rather than
+   silently dropping it or substituting another folder. Do not refresh/change the map to select scope.
+4. If no repository scope is declared by a usable map or project instructions, use the current Git
+   repo or discover the workspace's maintained immediate sibling Git repos, recognizing `.git`
+   worktree files and excluding dependencies, dot-folders and the actual docs repository. Record
+   the selected repos and how they were resolved. Ask only if materially different plausible
+   boundaries remain; do not ask users to choose audit lenses.
+
+Trace communicating first-party boundaries needed to evaluate the selected repos. Reading a
+connected component for contract evidence does not silently add its whole repo to the audit.
 
 Inventory maintained files before excluding anything. In Git, include tracked files and
 untracked nonignored files (`git ls-files --cached --others --exclude-standard -z`), deduplicated.

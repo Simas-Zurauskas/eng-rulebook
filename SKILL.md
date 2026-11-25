@@ -26,6 +26,10 @@ explain the supported commands and ask which audit mode is intended; do not sile
 or narrow the request. `all` remains a full-audit alias. `profile` is retired: use existing
 project facts and ask only for consequential information the code cannot establish.
 
+For audits without an explicit repository selection, use the source repositories registered in
+the project's wiki `AGENTS/` map before discovering siblings. Existing user scope takes precedence;
+the [audit scope resolution](audit.md#resolve-repository-scope) defines the fallback and exclusions.
+
 ## Common principles — apply on every development task
 
 - Build the smallest understandable solution satisfying the requested behavior. Preserve

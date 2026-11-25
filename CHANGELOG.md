@@ -1,5 +1,16 @@
 # Changelog — eng-rulebook
 
+## v14 — 2026-11-17
+
+**CLARIFIES — default audit repository scope.**
+
+Explicit repository selections/exclusions persist across the conversation. Without one, audits
+use the source repositories registered in the project's wiki `AGENTS/` map (wiki-system state
+and index), honoring exclusions and reporting missing checkouts. The documentation repo is not
+automatically audited. Current/sibling Git discovery remains the fallback for projects without
+a declared map scope; no wiki refresh or dependency on the wiki-system installation is introduced.
+Guide checks, full-audit completeness and verification standards remain unchanged.
+
 ## v13 — 2026-11-08
 
 **CLARIFIES — fixture reuse, faithful boundaries and test maintenance.**
